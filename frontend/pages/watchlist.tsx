@@ -45,8 +45,6 @@ export default function WatchlistPage() {
     } catch (e: any) { toast(e.message, 'error'); }
   };
 
-  if (authLoading || loading) return <Spinner label="Loading watchlist…" />;
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <Head><title>My Watchlist — GrinCryptoWorld</title></Head>
@@ -54,8 +52,9 @@ export default function WatchlistPage() {
         <h1 className="text-3xl font-black">⭐ My Watchlist</h1>
         <p className="mt-1 text-sm text-slate-500">Coins you starred, with live prices.</p>
       </div>
-
-      {!user ? (
+      {(authLoading || loading) ? (
+        <Spinner label="Loading watchlist…" />
+      ) : !user ? (
         <EmptyState
           icon="⭐"
           title="Sign in to use the watchlist"

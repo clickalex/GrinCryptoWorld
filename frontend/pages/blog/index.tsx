@@ -37,6 +37,7 @@ export default function BlogPage() {
       <Head>
         <title>Crypto Blog — Guides, Analysis & News | GrinCryptoWorld</title>
         <meta name="description" content="In-depth guides and analysis on Bitcoin, Ethereum, DeFi, security, mining and regulation." />
+        <link rel="alternate" type="application/rss+xml" title="GrinCryptoWorld Blog" href="/api/rss.xml" />
       </Head>
 
       <div className="mb-8">

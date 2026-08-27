@@ -91,6 +91,31 @@ toolsRouter.get('/sentiment', asyncHandler(async (_req, res) => {
   res.json({ value, label, history, source: 'fallback' as const });
 }));
 
+/** GET /api/tools/fx — display-currency rates vs USD (live when reachable, static baseline otherwise) */
+const FX_CACHE_TTL = 3600_000;
+let fxCache: { rates: Record<string, number>; source: 'live' | 'static'; at: number } | null = null;
+const FX_FALLBACK: Record<string, number> = { USD: 1, INR: 87.2, EUR: 0.92, GBP: 0.79, JPY: 157.3 };
+
+toolsRouter.get('/fx', asyncHandler(async (_req, res) => {
+  if (fxCache && Date.now() - fxCache.at < FX_CACHE_TTL) return res.json({ ...fxCache, updatedAt: new Date(fxCache.at).toISOString() });
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 3500);
+    const r = await fetch('https://open.er-api.com/v6/latest/USD', { signal: controller.signal });
+    if (r.ok) {
+      const j: any = await r.json();
+      if (j?.rates) {
+        const rates: Record<string, number> = { USD: 1 };
+        for (const c of Object.keys(FX_FALLBACK)) if (typeof j.rates[c] === 'number') rates[c] = j.rates[c];
+        fxCache = { rates, source: 'live', at: Date.now() };
+        return res.json({ ...fxCache, updatedAt: new Date().toISOString() });
+      }
+    }
+  } catch { /* offline */ }
+  fxCache = { rates: FX_FALLBACK, source: 'static', at: Date.now() };
+  res.json({ ...fxCache, updatedAt: new Date().toISOString() });
+}));
+
 /** Portfolio persistence (optional per-user cloud save) */
 toolsRouter.get('/portfolio', authRequired, asyncHandler(async (req, res) => {
   const saved = await db().findOne<any>('portfolios', { userId: req.user!.id });

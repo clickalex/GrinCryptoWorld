@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import type { CoinMarket } from '@grincrypto/shared';
 import { fmtCompactNum, fmtCompactUsd, fmtUsd, changeColor } from '@/lib/format';
+import { useCurrency } from '@/lib/currency';
 import { ChangeBadge, CoinAvatar } from '@/components/common';
 
 /** Tiny inline SVG sparkline of the last 7 daily points. */
@@ -36,6 +37,7 @@ export function CoinTable({
   coins: CoinMarket[]; sort?: string; order?: 'asc' | 'desc'; onSort?: (f: SortField) => void; showSpark?: boolean;
   watchlist?: string[]; onToggleWatch?: (coinId: string) => void;
 }) {
+  const { fmt: fmtCcy } = useCurrency();
   const arrow = (f: string) => (sort === f ? (order === 'asc' ? ' ↑' : ' ↓') : '');
   const cols: Array<[SortField, string]> = [
     ['market_cap_rank', '#'],
@@ -85,7 +87,7 @@ export function CoinTable({
                   </span>
                 </Link>
               </td>
-              <td className="td text-right font-semibold">{fmtUsd(c.currentPrice)}</td>
+              <td className="td text-right font-semibold">{fmtCcy(c.currentPrice, 8)}</td>
               <td className="td text-right"><ChangeBadge value={c.priceChangePercentage1h} /></td>
               <td className="td text-right"><ChangeBadge value={c.priceChangePercentage24h} /></td>
               <td className="td text-right"><ChangeBadge value={c.priceChangePercentage7d} /></td>

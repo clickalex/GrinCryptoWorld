@@ -26,6 +26,30 @@ export default function DashboardPage() {
   const [coinOptions, setCoinOptions] = useState<Array<{ id: string; name: string; symbol: string }>>([]);
   const [editingProduct, setEditingProduct] = useState<Product | 'new' | null>(null);
   const [profile, setProfile] = useState({ name: '', bio: '' });
+  const [badges, setBadges] = useState<Array<{ icon: string; label: string; hint: string; earned: boolean }> | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const [alertsR, watchR, paperR, boardR] = await Promise.all([
+          api<{ items: Alert[] }>('/alerts').catch(() => ({ items: [] as Alert[] })),
+          api<{ coinIds: string[] }>('/watchlist').catch(() => ({ coinIds: [] })),
+          api<{ account: { trades: any[]; equity: number; positions: any[]; startingCash: number } }>('/paper').catch(() => null),
+          api<{ leaderboard: Array<{ userId?: string; name: string; points: number }> }>('/forum/leaderboard').catch(() => ({ leaderboard: [] })),
+        ]);
+        const me = boardR.leaderboard.find((e: any) => e.userId === user._id || e.name === user.name);
+        setBadges([
+          { icon: '🎉', label: 'First Trade', hint: 'Place your first paper trade', earned: (paperR?.account.trades.length ?? 0) > 0 },
+          { icon: '🐋', label: 'Paper Whale', hint: 'Grow past $11,000 equity', earned: (paperR?.account.equity ?? 0) > 11000 },
+          { icon: '🔔', label: 'Alert Setter', hint: 'Create a price alert', earned: alertsR.items.length > 0 },
+          { icon: '⭐', label: 'Star Collector', hint: 'Watchlist 3+ coins', earned: watchR.coinIds.length >= 3 },
+          { icon: '🗣️', label: 'Community Voice', hint: 'Earn forum points', earned: (me?.points ?? 0) > 0 },
+          { icon: '🧠', label: 'Always Learning', hint: 'Add a bio to your profile', earned: Boolean(user.bio?.trim()) },
+        ]);
+      } catch { setBadges([]); }
+    })();
+  }, [user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (!loading && !user) router.push('/auth/login?next=/dashboard'); }, [loading, user, router]);
   useEffect(() => { if (user) setProfile({ name: user.name, bio: user.bio ?? '' }); }, [user]);
@@ -126,11 +150,29 @@ export default function DashboardPage() {
       {busy && <Spinner label="Loading…" />}
 
       {tab === 'overview' && (
+        <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-3">
           <StatCard label="Paid orders" value={String(stats.orders)} icon="📦" />
           <StatCard label="Total spent" value={fmtUsd(stats.spent)} icon="💸" />
           <StatCard label="Active alerts" value={String(stats.activeAlerts)} icon="🔔" />
-          <div className="card p-5 sm:col-span-3">
+          </div>
+          <div className="card p-5">
+            <h2 className="mb-3 font-bold">🏅 Achievements</h2>
+            {badges === null ? (
+              <p className="text-sm text-slate-400">Loading badges…</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {badges.map((b) => (
+                  <div key={b.label} title={b.hint} className={`rounded-xl border p-3 text-center transition-all ${b.earned ? 'border-brand-500/40 bg-brand-500/5' : 'border-slate-200 opacity-50 dark:border-white/10'}`}>
+                    <div className="text-2xl">{b.earned ? b.icon : '🔒'}</div>
+                    <div className="mt-1 text-xs font-bold">{b.label}</div>
+                    <div className="mt-0.5 text-[10px] leading-tight text-slate-400">{b.hint}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="card p-5">
             <h2 className="mb-3 font-bold">Quick actions</h2>
             <div className="flex flex-wrap gap-2">
               <Link href="/tools/portfolio" className="btn-ghost text-sm">📈 Portfolio tracker</Link>

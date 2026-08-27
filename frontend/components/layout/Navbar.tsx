@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { fmtUsd, timeAgo } from '@/lib/format';
 import { CoinAvatar } from '@/components/common';
 import CommandPalette from '@/components/common/CommandPalette';
+import { useCurrency, CURRENCIES } from '@/lib/currency';
 
 const NAV = [
   { href: '/coins', label: 'Coins' },
@@ -32,6 +33,7 @@ const EMPTY: SearchResults = { coins: [], posts: [], terms: [], faucets: [], pro
 
 export default function Navbar() {
   const { user, logout, notifications, unread, markAllRead } = useAuth();
+  const { currency, setCurrency } = useCurrency();
   const { theme, toggle } = useTheme();
   const { count } = useCart();
   const router = useRouter();
@@ -146,6 +148,16 @@ export default function Navbar() {
             </div>
           )}
         </div>
+
+        <select
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value as any)}
+          className="hidden rounded-lg border border-slate-200 bg-transparent px-1.5 py-1 text-xs font-bold text-slate-500 outline-none dark:border-white/10 dark:text-slate-400 sm:block"
+          aria-label="Display currency"
+          title="Display currency (prices convert from USD)"
+        >
+          {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
 
         {/* Theme toggle */}
         <button onClick={toggle} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white" aria-label="Toggle theme" title="Toggle theme">

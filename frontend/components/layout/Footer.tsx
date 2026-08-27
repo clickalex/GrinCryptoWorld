@@ -18,7 +18,7 @@ export default function Footer() {
           <Link href="/platform" className="mt-3 inline-block text-xs font-semibold text-brand-500 hover:underline">See the system behind the signal →</Link>
         </div>
         <FooterCol title="Markets" links={[['Coins', '/coins'], ['Tools', '/tools'], ['Gas tracker', '/tools/gas'], ['Converter', '/tools/converter'], ['Portfolio', '/tools/portfolio']]} />
-        <FooterCol title="Learn" links={[['Blog', '/blog'], ['Glossary', '/glossary'], ['Forum', '/forum'], ['Faucets', '/faucets']]} />
+        <FooterCol title="Learn" links={[['Blog', '/blog'], ['RSS feed', '/api/rss.xml'], ['Glossary', '/glossary'], ['Forum', '/forum'], ['Faucets', '/faucets']]} />
         <FooterCol title="Platform" links={[['Marketplace', '/marketplace'], ['System map', '/platform'], ['API docs', '/api-docs'], ['Sign in', '/auth/login'], ['Create account', '/auth/register'], ['Dashboard', '/dashboard']]} />
       </div>
       <div className="border-t border-slate-200 py-5 text-center text-xs text-slate-400 dark:border-white/10">

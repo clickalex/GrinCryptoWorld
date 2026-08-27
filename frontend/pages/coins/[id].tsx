@@ -9,6 +9,7 @@ import { Breadcrumbs, ChangeBadge, CoinAvatar, Spinner, EmptyState } from '@/com
 import { fmtCompactNum, fmtCompactUsd, fmtDate, fmtNum, fmtUsd } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
+import { useCurrency } from '@/lib/currency';
 
 const PriceChart = dynamic(() => import('@/components/coin/PriceChart'), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-slate-200/40 dark:bg-white/5" /> });
 const CandleChart = dynamic(() => import('@/components/coin/CandleChart'), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-slate-200/40 dark:bg-white/5" /> });
@@ -20,6 +21,7 @@ export default function CoinDetailPage() {
   const { id } = router.query;
   const { user } = useAuth();
   const { toast } = useToast();
+  const { fmt: fmtCcy } = useCurrency();
   const [coin, setCoin] = useState<CoinDetail | null>(null);
   const [source, setSource] = useState('');
   const [days, setDays] = useState<number>(180);
@@ -104,7 +106,7 @@ export default function CoinDetailPage() {
               <span className="text-xs font-normal text-slate-400">Rank #{coin.marketCapRank}</span>
             </div>
             <div className="mt-1 flex items-baseline gap-3">
-              <span className="text-3xl font-black">{fmtUsd(coin.currentPrice, { maxDigits: 8 })}</span>
+              <span className="text-3xl font-black">{fmtCcy(coin.currentPrice, 8)}</span>
               <ChangeBadge value={coin.priceChangePercentage24h} />
               <span className="text-xs text-slate-400">(24h)</span>
             </div>
