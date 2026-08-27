@@ -148,9 +148,11 @@ blogRouter.put('/:id', authRequired, adminRequired, asyncHandler(async (req, res
   res.json({ post: updated });
 }));
 
-/** DELETE /api/blog/:id — remove (admin only) */
+/** DELETE /api/blog/:id — remove (admin only, cascades comments) */
 blogRouter.delete('/:id', authRequired, adminRequired, asyncHandler(async (req, res) => {
-  const ok = await db().deleteOne('blog', { _id: req.params.id });
-  if (!ok) return res.status(404).json({ error: 'Article not found' });
+  const post = await db().findOne<any>('blog', { _id: req.params.id });
+  if (!post) return res.status(404).json({ error: 'Article not found' });
+  await db().deleteMany('blog_comments', { postId: post._id });
+  await db().deleteOne('blog', { _id: post._id });
   res.json({ ok: true });
 }));

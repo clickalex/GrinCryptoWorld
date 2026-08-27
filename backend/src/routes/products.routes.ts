@@ -171,6 +171,8 @@ productsRouter.delete('/:id', authRequired, asyncHandler(async (req, res) => {
   const product = await db().findOne<Product>('products', { _id: req.params.id });
   if (!product) return res.status(404).json({ error: 'Product not found' });
   if (product.sellerId !== req.user!.id && req.user!.role !== 'admin') return res.status(403).json({ error: 'Not your listing' });
+  await db().deleteMany('product_reviews', { productId: product._id });
+  await db().deleteMany('orders', { productId: product._id, status: 'pending' });
   await db().deleteOne('products', { _id: product._id });
   res.json({ ok: true });
 }));
