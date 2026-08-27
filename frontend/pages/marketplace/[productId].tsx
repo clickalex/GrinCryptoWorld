@@ -6,7 +6,9 @@ import type { Product } from '@grincrypto/shared';
 import { api } from '@/lib/api';
 import { Breadcrumbs, EmptyState, Spinner } from '@/components/common';
 import { useCart } from '@/lib/cart';
+import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
+import { fmtDate } from '@/lib/format';
 import { fmtUsd, symbolColor } from '@/lib/format';
 import { SUPPORTED_PAYMENT_CURRENCIES } from '@grincrypto/shared';
 
@@ -22,6 +24,11 @@ export default function ProductPage() {
   const [prices, setPrices] = useState<Record<string, PriceRow>>({});
   const [currency, setCurrency] = useState('ETH');
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<Array<{ _id: string; authorName: string; rating: number; body: string; createdAt: string }>>([]);
+  const [bought, setBought] = useState(false);
+  const [revForm, setRevForm] = useState({ rating: 5, body: '' });
+  const [revBusy, setRevBusy] = useState(false);
+  const { user } = useAuth();
 
   const load = useCallback(async () => {
     if (!productId) return;
@@ -40,6 +47,25 @@ export default function ProductPage() {
   }, [productId]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!productId) return;
+    api<{ reviews: typeof reviews }>(`/products/${productId}/reviews`).then((r) => setReviews(r.reviews)).catch(() => undefined);
+    if (user) api<{ orders: Array<{ productId: string; status: string }> }>('/payments/my')
+      .then((r) => setBought(r.orders.some((o) => o.productId === productId && o.status === 'paid')))
+      .catch(() => undefined);
+  }, [productId, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submitReview = async () => {
+    setRevBusy(true);
+    try {
+      await api(`/products/${productId}/reviews`, { body: revForm });
+      toast('Review posted — thank you! ⭐', 'success');
+      setRevForm({ rating: 5, body: '' });
+      const r = await api<{ reviews: typeof reviews }>(`/products/${productId}/reviews`);
+      setReviews(r.reviews);
+      load();
+    } catch (e: any) { toast(e.message, 'error'); } finally { setRevBusy(false); }
+  };
 
   if (loading) return <Spinner label="Loading product…" />;
   if (!product) return <div className="mx-auto max-w-3xl px-4 py-16"><EmptyState icon="📦" title="Product not found" action={<Link href="/marketplace" className="btn-primary mt-3">← Marketplace</Link>} /></div>;
@@ -103,6 +129,40 @@ export default function ProductPage() {
           </div>
         </div>
       </div>
+
+      <section className="mt-12">
+        <h2 className="mb-4 text-xl font-bold">⭐ Reviews {reviews.length > 0 && `(${reviews.length})`}</h2>
+        {reviews.length === 0 ? (
+          <div className="card p-5 text-sm text-slate-500">No reviews yet{bought ? ' — you could be the first!' : '. Only verified buyers can review.'}</div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {reviews.map((r) => (
+              <div key={r._id} className="card p-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <b>{r.authorName}</b>
+                  <span className="text-amber-400">{'★'.repeat(r.rating)}<span className="text-slate-300">{'★'.repeat(5 - r.rating)}</span></span>
+                  <span className="ml-auto text-xs text-slate-400">{fmtDate(r.createdAt)}</span>
+                </div>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{r.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {user && bought && (
+          <div className="card mt-5 p-5">
+            <h3 className="mb-3 font-bold">Write a review</h3>
+            <div className="mb-3 flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} onClick={() => setRevForm({ ...revForm, rating: n })} className={`text-2xl ${n <= revForm.rating ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}`}>★</button>
+              ))}
+            </div>
+            <textarea className="input min-h-24" maxLength={1000} placeholder="What did you think? (10–1000 characters)" value={revForm.body} onChange={(e) => setRevForm({ ...revForm, body: e.target.value })} />
+            <div className="mt-3 text-right">
+              <button className="btn-primary" disabled={revBusy || revForm.body.trim().length < 10} onClick={submitReview}>{revBusy ? 'Posting…' : 'Post review'}</button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {related.length > 0 && (
         <section className="mt-12">

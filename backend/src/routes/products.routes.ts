@@ -62,6 +62,39 @@ function validateProduct(body: any): string[] {
   return errors;
 }
 
+/** GET /api/products/:id/reviews — recent reviews */
+productsRouter.get('/:id/reviews', asyncHandler(async (req, res) => {
+  const reviews = await db().find<any>('product_reviews', { productId: req.params.id }, { sort: { createdAt: -1 }, limit: 50 });
+  res.json({ reviews });
+}));
+
+/** POST /api/products/:id/reviews — verified buyers only, one per buyer */
+productsRouter.post('/:id/reviews', authRequired, asyncHandler(async (req, res) => {
+  const product = await db().findOne<Product>('products', { _id: req.params.id });
+  if (!product || product.status !== 'approved') return res.status(404).json({ error: 'Product not found' });
+
+  const rating = Math.round(Number((req.body || {}).rating));
+  const body = String((req.body || {}).body || '').trim();
+  if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ error: 'rating must be 1–5' });
+  if (body.length < 10 || body.length > 1000) return res.status(400).json({ error: 'Review text must be 10–1000 characters' });
+
+  const paidOrder = await db().findOne<any>('orders', { userId: req.user!.id, productId: product._id, status: 'paid' });
+  if (!paidOrder) return res.status(403).json({ error: 'Only verified buyers can review this product' });
+
+  const already = await db().findOne<any>('product_reviews', { userId: req.user!.id, productId: product._id });
+  if (already) return res.status(409).json({ error: 'You already reviewed this product' });
+
+  const author = await db().findOne<any>('users', { _id: req.user!.id });
+  await db().insertOne('product_reviews', {
+    _id: newId(), productId: product._id, userId: req.user!.id,
+    authorName: author?.name || 'Anonymous', rating, body, createdAt: now(),
+  });
+  const all = await db().find<any>('product_reviews', { productId: product._id });
+  const avg = all.reduce((s2, r) => s2 + r.rating, 0) / all.length;
+  await db().updateOne('products', { _id: product._id }, { $set: { rating: +avg.toFixed(1), updatedAt: now() } });
+  res.status(201).json({ ok: true, rating: +avg.toFixed(1), count: all.length });
+}));
+
 /** POST /api/products — seller/admin creates listing (goes to pending review) */
 productsRouter.post('/', authRequired, roleRequired('seller', 'admin'), asyncHandler(async (req, res) => {
   const errors = validateProduct(req.body);
