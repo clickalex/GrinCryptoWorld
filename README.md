@@ -20,6 +20,13 @@ npm run dev:backend  # API on http://localhost:4000 (seeds demo data on first bo
 npm run dev:frontend # Next.js on http://localhost:3000 (proxies /api/* to :4000)
 ```
 
+## 🌍 Deploy live
+
+GitHub Pages can't run the backend — connect the repo to a host instead.
+**[DEPLOYMENT.md](./DEPLOYMENT.md)** has the full guide; fastest path is the included
+Render blueprint: merge the PR → render.com → New → Blueprint → select repo → Apply
+(free, no credit card). Set `MONGODB_URI` (free Atlas tier) for persistent data.
+
 ### Demo accounts (seeded)
 
 | Role | Email | Password |

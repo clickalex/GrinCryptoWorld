@@ -6,7 +6,8 @@ import { CoinTable, GlobalStatsBar } from '@/components/coin';
 import { CoinAvatar } from '@/components/common';
 import { fmtDate, fmtPct, changeColor } from '@/lib/format';
 
-const API = process.env.API_PROXY_TARGET || 'http://localhost:4000';
+const rawApi = process.env.API_SSR_URL || process.env.API_PROXY_TARGET || 'http://localhost:4000';
+const API = rawApi.startsWith('http') ? rawApi : `https://${rawApi}`;
 
 async function sfetch<T>(path: string): Promise<T | null> {
   try {

@@ -26,10 +26,14 @@ export async function api<T = any>(
   const token = getToken();
   if (token && opts.auth !== false) headers['Authorization'] = `Bearer ${token}`;
 
+  // Same-origin via the Next proxy by default; set NEXT_PUBLIC_API_URL when the
+  // API is hosted separately (e.g. frontend on Vercel, API on Render).
+  const base = process.env.NEXT_PUBLIC_API_URL || '';
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 20000);
   try {
-    const res = await fetch(`/api${path}`, {
+    const res = await fetch(`${base}/api${path}`, {
       method: opts.method || (opts.body !== undefined ? 'POST' : 'GET'),
       headers,
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
