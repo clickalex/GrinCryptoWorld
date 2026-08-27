@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /api/notifications
+Disallow: /api/auth
+Disallow: /api/payments
+Disallow: /api/admin
+
+# Update with your real domain after deploying:
+Sitemap: https://grincrypto-world.onrender.com/api/sitemap.xml

@@ -27,6 +27,12 @@ GitHub Pages can't run the backend — connect the repo to a host instead.
 Render blueprint: merge the PR → render.com → New → Blueprint → select repo → Apply
 (free, no credit card). Set `MONGODB_URI` (free Atlas tier) for persistent data.
 
+## 🔍 Before going live
+
+Read **[AUDIT.md](./AUDIT.md)** — an honest list of the build's cons and limitations
+(security, data, stubs, scalability) — and **[ROADMAP.md](./ROADMAP.md)** for the
+prioritized feature plan (P0 launch blockers → P2 big bets).
+
 ### Demo accounts (seeded)
 
 | Role | Email | Password |

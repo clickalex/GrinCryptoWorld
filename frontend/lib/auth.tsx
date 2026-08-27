@@ -56,6 +56,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Register this browser with OneSignal so push notifications can reach it
+  // (no-op unless NEXT_PUBLIC_ONESIGNAL_APP_ID is configured).
+  useEffect(() => {
+    if (!user) return;
+    try {
+      (window as any).OneSignalDeferred?.push(async (OneSignal: any) => {
+        try {
+          const playerId = await OneSignal.getUserId?.();
+          if (playerId) await api('/notifications/subscribe', { body: { playerId } });
+        } catch { /* noop */ }
+      });
+    } catch { /* noop */ }
+  }, [user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const login = useCallback(async (email: string, password: string) => {
     const res = await api<{ token: string; user: PublicUser }>('/auth/login', { body: { email, password } });
     setToken(res.token);

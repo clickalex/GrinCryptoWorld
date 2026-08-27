@@ -30,6 +30,11 @@ export class MemoryDriver implements DbDriver {
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null;
       try {
+        // Cap the API log collection so a busy site can't grow RAM without bound
+        // between nightly cron prunes.
+        if (this.store.apilogs && this.store.apilogs.length > 5000) {
+          this.store.apilogs = this.store.apilogs.slice(-5000);
+        }
         fs.writeFileSync(this.file, JSON.stringify(this.store));
       } catch (e) {
         console.error('[memory-db] persist failed', e);
