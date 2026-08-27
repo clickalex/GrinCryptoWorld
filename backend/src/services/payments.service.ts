@@ -126,9 +126,14 @@ export async function settleOrder(orderId: string, meta: { txHash?: string; sign
   if (!order) return null;
   if (order.status === 'paid') return order;
 
-  const updated = await db().updateOne<Order>(ORDERS, { _id: orderId }, {
+  // Atomic claim: only the first caller transitions pending -> paid (race-safe on MongoDB too).
+  const updated = await db().updateOne<Order>(ORDERS, { _id: orderId, status: 'pending' }, {
     $set: { status: 'paid', updatedAt: now(), txHash: meta.txHash, signature: meta.signature?.slice(0, 200) },
   });
+  if (!updated) {
+    // Someone else settled concurrently — return the settled order unchanged.
+    return db().findOne<Order>(ORDERS, { _id: orderId });
+  }
   const product = await db().findOne<any>('products', { _id: order.productId });
   if (product) {
     if (product.stock <= 0) {

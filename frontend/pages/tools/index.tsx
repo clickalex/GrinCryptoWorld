@@ -4,6 +4,7 @@ import Link from 'next/link';
 const TOOLS = [
   { href: '/tools/portfolio', icon: '📈', title: 'Portfolio Tracker', desc: 'Track your holdings with live prices, 24h P&L and total portfolio value. Saves locally, syncs to your account optionally.' },
   { href: '/tools/trading', icon: '🎮', title: 'Paper Trading Game', desc: 'Practice with $10,000 of pretend money at live prices — buy, sell, and climb the leaderboard. Zero risk.' },
+  { href: '/tools/compare', icon: '⚖️', title: 'Coin Compare', desc: 'Put up to 3 coins on one normalized chart and see exactly who is outperforming.' },
   { href: '/tools/converter', icon: '🔁', title: 'Coin Converter', desc: 'Convert between any two assets (or USD) using live CoinGecko rates.' },
   { href: '/tools/gas', icon: '⛽', title: 'Gas Tracker', desc: 'Live Ethereum gas prices (slow / standard / fast) with a 24h chart and USD cost estimates.' },
 ];

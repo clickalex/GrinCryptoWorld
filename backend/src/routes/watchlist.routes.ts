@@ -11,7 +11,7 @@ watchlistRouter.use(authRequired);
 /** GET /api/watchlist — my starred coin ids */
 watchlistRouter.get('/', asyncHandler(async (req, res) => {
   const items = await db().find<WatchlistItem>('watchlists', { userId: req.user!.id }, { sort: { createdAt: -1 } });
-  res.json({ coinIds: items.map((i) => i.coinId) });
+  res.json({ coinIds: [...new Set(items.map((i) => i.coinId))] });
 }));
 
 /** POST /api/watchlist — toggle a coin on/off the watchlist */
@@ -21,11 +21,10 @@ watchlistRouter.post('/', asyncHandler(async (req, res) => {
   const coin = await getCoin(coinId);
   if (!coin) return res.status(400).json({ error: 'Unknown coin' });
 
-  const existing = await db().findOne<WatchlistItem>('watchlists', { userId: req.user!.id, coinId: coin.id });
-  if (existing) {
-    await db().deleteOne('watchlists', { _id: existing._id });
-    return res.json({ watching: false, coinId: coin.id });
-  }
+  // deleteMany-then-insert keeps this idempotent even under parallel toggles.
+  const removed = await db().deleteMany('watchlists', { userId: req.user!.id, coinId: coin.id });
+  if (removed > 0) return res.json({ watching: false, coinId: coin.id });
+  await db().deleteMany('watchlists', { userId: req.user!.id, coinId: coin.id });
   await db().insertOne('watchlists', { _id: newId(), userId: req.user!.id, coinId: coin.id, createdAt: now() });
   res.json({ watching: true, coinId: coin.id });
 }));

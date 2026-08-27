@@ -103,7 +103,11 @@ paperRouter.post('/trade', authRequired, asyncHandler(async (req, res) => {
     trades: [...account.trades, trade].slice(-100),
     updatedAt: now(),
   };
-  await db().updateOne('paper_accounts', { userId: req.user!.id }, { $set: updated });
+  // Optimistic lock: the write only lands if cash is unchanged since we read it.
+  const claimed = await db().updateOne('paper_accounts', { userId: req.user!.id, cashUsd: account.cashUsd }, { $set: updated });
+  if (!claimed) {
+    throw Object.assign(new Error('Concurrent trade detected — please retry'), { status: 409 });
+  }
 
   const prices = await getPricesBySymbols(updated.positions.map((p) => p.symbol));
   const priceMap = Object.fromEntries(Object.entries(prices).map(([k, c]) => [k, c.currentPrice]));
