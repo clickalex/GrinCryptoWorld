@@ -1,0 +1,22 @@
+import { Html, Head, Main, NextScript } from 'next/document';
+
+export default function Document() {
+  return (
+    <Html lang="en" className="dark">
+      <Head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        {/* OneSignal push notifications: set NEXT_PUBLIC_ONESIGNAL_APP_ID to enable */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.OneSignalDeferred=window.OneSignalDeferred||[];OneSignalDeferred.push(function(OneSignal){if('${process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''}')OneSignal.init({appId:'${process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || ''}',safari_web_id:null,notifyButton:{enable:true}})});`,
+          }}
+        />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  );
+}
