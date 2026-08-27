@@ -82,8 +82,6 @@ export default function PortfolioPage() {
     } catch (e: any) { toast(e.message, 'error'); }
   };
 
-  if (loading) return <Spinner label="Loading market data…" />;
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <Head><title>Portfolio Tracker — GrinCryptoWorld</title></Head>
@@ -92,6 +90,7 @@ export default function PortfolioPage() {
         Stored in your browser (localStorage){user ? ' with optional cloud sync to your account' : ' — sign in for cloud sync'}.
       </p>
 
+      {loading ? <Spinner label="Loading market data…" /> : (<>
       {/* Summary */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
@@ -172,6 +171,7 @@ export default function PortfolioPage() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

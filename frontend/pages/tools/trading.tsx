@@ -68,8 +68,6 @@ export default function PaperTradingPage() {
     load();
   };
 
-  if (authLoading || loading) return <Spinner label="Loading trading game…" />;
-
   const totalReturn = account ? ((account.equity - account.startingCash) / account.startingCash) * 100 : 0;
 
   return (
@@ -83,7 +81,7 @@ export default function PaperTradingPage() {
         {user && <button className="btn-ghost text-sm" onClick={reset}>↺ Reset account</button>}
       </div>
 
-      {!user ? (
+      {(authLoading || loading) ? (<Spinner label="Loading trading game…" />) : !user ? (
         <EmptyState
           icon="🎮"
           title="Sign in to play"

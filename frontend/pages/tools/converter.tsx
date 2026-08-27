@@ -37,7 +37,6 @@ export default function ConverterPage() {
   useEffect(() => { const t = setInterval(convert, 30_000); return () => clearInterval(t); }, [convert]);
 
   const swap = () => { setFrom(to); setTo(from); };
-  if (loading) return <Spinner />;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -45,6 +44,7 @@ export default function ConverterPage() {
       <h1 className="mb-1 text-3xl font-black">🔁 Coin Converter</h1>
       <p className="mb-8 text-sm text-slate-500">Live rates from the CoinGecko market cache.</p>
 
+      {loading ? <Spinner /> : (
       <div className="card space-y-4 p-6">
         <div>
           <label className="label">From</label>
@@ -83,6 +83,7 @@ export default function ConverterPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
