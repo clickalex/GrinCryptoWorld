@@ -20,15 +20,16 @@ async function sfetch<T>(path: string): Promise<T | null> {
 }
 
 export const getServerSideProps: GetServerSideProps = async () => {
-  const [coins, global, blog] = await Promise.all([
+  const [coins, global, blog, sentiment] = await Promise.all([
     sfetch<{ items: CoinMarket[]; source: string }>('/coins?perPage=10&sort=market_cap_rank'),
     sfetch<{ global: GlobalMarketData }>('/coins/global'),
     sfetch<{ items: BlogPost[] }>('/blog?perPage=3'),
+    sfetch<{ value: number; label: string; source: string }>('/tools/sentiment'),
   ]);
-  return { props: { coins: coins?.items ?? [], source: coins?.source ?? 'fallback', global: global?.global ?? null, posts: blog?.items ?? [] } };
+  return { props: { coins: coins?.items ?? [], source: coins?.source ?? 'fallback', global: global?.global ?? null, posts: blog?.items ?? [], sentiment: sentiment ?? null } };
 };
 
-export default function Home({ coins, global, source, posts }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+export default function Home({ coins, global, source, posts, sentiment }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const gainers = [...coins].sort((a, b) => (b.priceChangePercentage24h ?? 0) - (a.priceChangePercentage24h ?? 0)).slice(0, 4);
 
   return (
@@ -60,6 +61,21 @@ export default function Home({ coins, global, source, posts }: InferGetServerSid
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
+          {sentiment && (
+            <div className="card col-span-2 flex items-center gap-4 p-4">
+              <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-full text-xl font-black ${
+                sentiment.value >= 55 ? 'bg-emerald-500/15 text-emerald-500' : sentiment.value >= 45 ? 'bg-amber-500/15 text-amber-500' : 'bg-red-500/15 text-red-500'
+              }`}>{sentiment.value}</div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fear &amp; Greed Index</div>
+                <div className="font-bold">{sentiment.label}</div>
+                <div className="text-xs text-slate-400">{sentiment.source === 'live' ? 'live data' : 'derived from market moves'} · <Link href="/tools" className="text-brand-500 hover:underline">more tools →</Link></div>
+              </div>
+              <div className="ml-auto hidden h-2 w-28 overflow-hidden rounded-full bg-slate-200 sm:block dark:bg-white/10">
+                <div className={`h-full rounded-full ${sentiment.value >= 55 ? 'bg-emerald-500' : sentiment.value >= 45 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${sentiment.value}%` }} />
+              </div>
+            </div>
+          )}
           {gainers.map((c) => (
             <Link key={c.id} href={`/coins/${c.id}`} className="card card-hover p-4">
               <div className="flex items-center gap-2.5">

@@ -58,6 +58,39 @@ toolsRouter.get('/assets', asyncHandler(async (_req, res) => {
   });
 }));
 
+/** GET /api/tools/sentiment — Fear & Greed index (live alternative.me, modeled fallback) */
+toolsRouter.get('/sentiment', asyncHandler(async (_req, res) => {
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 4000);
+    const r = await fetch('https://api.alternative.me/fng/?limit=30&format=json', { signal: controller.signal });
+    if (r.ok) {
+      const j: any = await r.json();
+      if (j?.data?.length) {
+        return res.json({
+          value: Number(j.data[0].value),
+          label: j.data[0].value_classification,
+          history: j.data.map((d: any) => ({ t: Number(d.timestamp) * 1000, value: Number(d.value) })).reverse(),
+          source: 'live' as const,
+        });
+      }
+    }
+  } catch { /* offline */ }
+
+  // Fallback: derive from the market's own 24h moves (deterministic per 5-min window).
+  const { getMarkets } = await import('../services/coin.service');
+  const { items } = await getMarkets({ perPage: 30 });
+  const avg = items.reduce((s2, c) => s2 + (c.priceChangePercentage24h ?? 0), 0) / (items.length || 1);
+  const value = Math.max(5, Math.min(95, Math.round(50 + avg * 6)));
+  const label = value >= 75 ? 'Extreme Greed' : value >= 55 ? 'Greed' : value >= 45 ? 'Neutral' : value >= 25 ? 'Fear' : 'Extreme Fear';
+  const nowMs = Date.now();
+  const history = Array.from({ length: 30 }, (_, i) => ({
+    t: nowMs - (29 - i) * 86_400_000,
+    value: Math.max(5, Math.min(95, Math.round(value + Math.sin((i - 15) / 4) * 12))),
+  }));
+  res.json({ value, label, history, source: 'fallback' as const });
+}));
+
 /** Portfolio persistence (optional per-user cloud save) */
 toolsRouter.get('/portfolio', authRequired, asyncHandler(async (req, res) => {
   const saved = await db().findOne<any>('portfolios', { userId: req.user!.id });
