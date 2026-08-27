@@ -52,6 +52,9 @@ export default function Home({ coins, global, source, posts }: InferGetServerSid
             <Link href="/coins" className="btn-primary px-5 py-2.5">Explore markets →</Link>
             <Link href="/auth/register" className="btn-ghost px-5 py-2.5">Create free account</Link>
           </div>
+          <Link href="/platform" className="mt-4 inline-block text-xs font-semibold text-slate-400 hover:text-brand-500">
+            Curious how it all fits together? See the system map →
+          </Link>
           <div className="mt-6 text-xs text-slate-400">
             Demo accounts: admin@grincrypto.world / Admin123! · demo@grincrypto.world / Demo123!
           </div>

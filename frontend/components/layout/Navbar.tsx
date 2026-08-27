@@ -17,6 +17,7 @@ const NAV = [
   { href: '/marketplace', label: 'Marketplace' },
   { href: '/tools', label: 'Tools' },
   { href: '/forum', label: 'Forum' },
+  { href: '/platform', label: 'Platform', title: 'System map — how it all connects' },
 ];
 
 interface SearchResults {

@@ -15,10 +15,11 @@ export default function Footer() {
           <p className="mt-4 text-xs text-slate-400">
             Market data via the CoinGecko API. Nothing on this site is financial advice. DYOR. 🕶️
           </p>
+          <Link href="/platform" className="mt-3 inline-block text-xs font-semibold text-brand-500 hover:underline">See the system behind the signal →</Link>
         </div>
         <FooterCol title="Markets" links={[['Coins', '/coins'], ['Tools', '/tools'], ['Gas tracker', '/tools/gas'], ['Converter', '/tools/converter'], ['Portfolio', '/tools/portfolio']]} />
         <FooterCol title="Learn" links={[['Blog', '/blog'], ['Glossary', '/glossary'], ['Forum', '/forum'], ['Faucets', '/faucets']]} />
-        <FooterCol title="Platform" links={[['Marketplace', '/marketplace'], ['Sign in', '/auth/login'], ['Create account', '/auth/register'], ['Dashboard', '/dashboard']]} />
+        <FooterCol title="Platform" links={[['Marketplace', '/marketplace'], ['System map', '/platform'], ['Sign in', '/auth/login'], ['Create account', '/auth/register'], ['Dashboard', '/dashboard']]} />
       </div>
       <div className="border-t border-slate-200 py-5 text-center text-xs text-slate-400 dark:border-white/10">
         © {new Date().getFullYear()} GrinCryptoWorld — Demo build. Crypto involves risk; never invest more than you can afford to lose.
