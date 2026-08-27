@@ -56,6 +56,7 @@ paperRouter.get('/', authRequired, asyncHandler(async (req, res) => {
 /** POST /api/paper/trade — buy or sell with pretend money at live prices */
 paperRouter.post('/trade', authRequired, asyncHandler(async (req, res) => {
   const { coinId, side, usdAmount } = req.body || {};
+  if (!coinId) return res.status(400).json({ error: 'coinId is required' });
   if (!['buy', 'sell'].includes(side)) return res.status(400).json({ error: 'side must be buy or sell' });
   const usd = Number(usdAmount);
   if (!isFinite(usd) || usd < 1) return res.status(400).json({ error: 'usdAmount must be at least $1' });

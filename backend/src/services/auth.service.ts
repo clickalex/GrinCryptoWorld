@@ -38,6 +38,7 @@ export async function register(email: string, password: string, name: string): P
 }
 
 export async function login(email: string, password: string): Promise<User> {
+  if (!email || !password) throw Object.assign(new Error('Email and password are required'), { status: 400 });
   const user = await db().findOne<User>(USERS, { email: email.trim().toLowerCase() });
   if (!user?.passwordHash) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
 
@@ -67,6 +68,7 @@ export async function login(email: string, password: string): Promise<User> {
 /* --------------------------- MetaMask wallet login --------------------------- */
 
 export async function createNonce(address: string): Promise<{ nonce: string; message: string }> {
+  if (!address || typeof address !== 'string') throw Object.assign(new Error('address is required'), { status: 400 });
   const addr = address.toLowerCase();
   if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) throw Object.assign(new Error('Invalid wallet address'), { status: 400 });
   const nonce = `Sign this message to sign in to GrinCryptoWorld.\n\nWallet: ${addr}\nNonce: ${randomBytes(16).toString('hex')}\nTimestamp: ${Date.now()}`;
@@ -81,6 +83,7 @@ export async function createNonce(address: string): Promise<{ nonce: string; mes
 }
 
 export async function verifyWalletSignature(address: string, signature: string): Promise<User> {
+  if (!address || !signature) throw Object.assign(new Error('address and signature are required'), { status: 400 });
   const addr = address.toLowerCase();
   const record = await db().findOne<any>(NONCES, { address: addr });
   if (!record) throw Object.assign(new Error('No login challenge found — request a new one'), { status: 400 });
