@@ -31,9 +31,10 @@ export function sparkSeries(coin: CoinMarket): number[] {
 export type SortField = 'market_cap_rank' | 'current_price' | 'price_change_percentage_1h' | 'price_change_percentage_24h' | 'price_change_percentage_7d' | 'total_volume' | 'market_cap';
 
 export function CoinTable({
-  coins, sort, order, onSort, showSpark = true,
+  coins, sort, order, onSort, showSpark = true, watchlist, onToggleWatch,
 }: {
   coins: CoinMarket[]; sort?: string; order?: 'asc' | 'desc'; onSort?: (f: SortField) => void; showSpark?: boolean;
+  watchlist?: string[]; onToggleWatch?: (coinId: string) => void;
 }) {
   const arrow = (f: string) => (sort === f ? (order === 'asc' ? ' ↑' : ' ↓') : '');
   const cols: Array<[SortField, string]> = [
@@ -51,6 +52,7 @@ export function CoinTable({
       <table className="w-full min-w-[820px]">
         <thead className="border-b border-slate-200 dark:border-white/10">
           <tr>
+            {onToggleWatch && <th className="th w-8"></th>}
             <th className="th">Coin</th>
             {cols.map(([f, label]) => (
               <th key={f} className={`th text-right ${onSort ? 'cursor-pointer select-none hover:text-brand-500' : ''}`} onClick={() => onSort?.(f)}>
@@ -63,6 +65,17 @@ export function CoinTable({
         <tbody>
           {coins.map((c) => (
             <tr key={c.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50 dark:border-white/5 dark:hover:bg-white/[0.03]">
+              {onToggleWatch && (
+                <td className="td text-center">
+                  <button
+                    aria-label={watchlist?.includes(c.id) ? 'Remove from watchlist' : 'Add to watchlist'}
+                    onClick={(e) => { e.preventDefault(); onToggleWatch(c.id); }}
+                    className={`text-lg transition-transform hover:scale-125 ${watchlist?.includes(c.id) ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}`}
+                  >
+                    {watchlist?.includes(c.id) ? '★' : '☆'}
+                  </button>
+                </td>
+              )}
               <td className="td">
                 <Link href={`/coins/${c.id}`} className="flex items-center gap-3">
                   <CoinAvatar symbol={c.symbol} name={c.name} />

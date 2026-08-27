@@ -11,6 +11,9 @@ export interface User {
   walletAddress?: string;
   avatarUrl?: string;
   bio?: string;
+  emailVerified?: boolean;
+  failedLogins?: number;
+  lockedUntil?: string;
   settings: {
     theme?: 'light' | 'dark';
     emailNotifications: boolean;
@@ -191,6 +194,7 @@ export interface Order {
   rate: number;
   paymentMethod: 'metamask' | 'nowpayments' | 'coinpayments';
   paymentAddress?: string;
+  invoiceUrl?: string;
   status: OrderStatus;
   txHash?: string;
   signature?: string;
@@ -267,6 +271,43 @@ export interface LeaderboardEntry {
   name: string;
   points: number;
   badges: string[];
+}
+
+/* ------------------------------ Watchlist ------------------------------ */
+
+export interface WatchlistItem {
+  _id: string;
+  userId: string;
+  coinId: string;
+  createdAt: string;
+}
+
+/* ---------------------------- Paper trading ---------------------------- */
+
+export interface PaperPosition {
+  coinId: string;
+  symbol: string;
+  amount: number;
+  avgPrice: number;
+}
+
+export interface PaperTrade {
+  at: string;
+  side: 'buy' | 'sell';
+  coinId: string;
+  symbol: string;
+  usd: number;
+  price: number;
+}
+
+export interface PaperAccount {
+  _id: string;
+  userId: string;
+  cashUsd: number;
+  positions: PaperPosition[];
+  trades: PaperTrade[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 /* ------------------------------- API ------------------------------- */

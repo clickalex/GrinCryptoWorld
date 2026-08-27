@@ -29,9 +29,20 @@ Render blueprint: merge the PR → render.com → New → Blueprint → select r
 
 ## 🔍 Before going live
 
-Read **[AUDIT.md](./AUDIT.md)** — an honest list of the build's cons and limitations
-(security, data, stubs, scalability) — and **[ROADMAP.md](./ROADMAP.md)** for the
-prioritized feature plan (P0 launch blockers → P2 big bets).
+Read **[AUDIT.md](./AUDIT.md)** — an honest, plain-English list of the build's pros and
+cons — and **[ROADMAP.md](./ROADMAP.md)** for the prioritized feature plan.
+Recent additions: **cookie-based login, password reset emails, account lockout,
+watchlist ⭐, candlestick charts 🕯️, paper-trading game 🎮, 27 automated tests,
+GitHub Actions CI, MongoDB indexes, helmet security headers** and optional
+on-chain payment verification.
+
+## 🧪 Tests
+
+```bash
+npm test -w backend   # 27 tests: auth, lockout, reset flow, watchlist, trading, payments…
+```
+
+CI runs on every push (`.github/workflows/ci.yml`): typecheck → tests → builds.
 
 ### Demo accounts (seeded)
 

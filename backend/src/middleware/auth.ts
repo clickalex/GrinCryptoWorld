@@ -27,9 +27,36 @@ export function signToken(user: { _id?: string; id?: string; email: string; role
   });
 }
 
-export function authRequired(req: Request, res: Response, next: NextFunction) {
+/** Reads the auth token from the Authorization header (API clients) or the httpOnly cookie (browser). */
+export function getTokenFromReq(req: Request): string | null {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : (req.cookies?.token as string | undefined);
+  if (header.startsWith('Bearer ')) return header.slice(7);
+  const cookies = req.headers.cookie;
+  if (cookies) {
+    const match = cookies.split(/;\s*/).find((c) => c.startsWith('gcw_token='));
+    if (match) return decodeURIComponent(match.split('=').slice(1).join('='));
+  }
+  return null;
+}
+
+/** Sets the httpOnly auth cookie. Cross-origin deployments get SameSite=None;Secure. */
+export function setAuthCookie(res: Response, token: string) {
+  const crossOrigin = config.corsOrigin !== '*';
+  res.cookie?.('gcw_token', token, {
+    httpOnly: true,
+    secure: crossOrigin,
+    sameSite: crossOrigin ? 'none' : 'lax',
+    maxAge: 7 * 24 * 3600 * 1000,
+    path: '/',
+  });
+}
+
+export function clearAuthCookie(res: Response) {
+  res.cookie?.('gcw_token', '', { httpOnly: true, maxAge: 0, path: '/' });
+}
+
+export function authRequired(req: Request, res: Response, next: NextFunction) {
+  const token = getTokenFromReq(req);
   if (!token) return res.status(401).json({ error: 'Authentication required' });
   try {
     const payload = jwt.verify(token, config.jwtSecret) as any;

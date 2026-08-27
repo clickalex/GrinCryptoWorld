@@ -6,16 +6,11 @@ export class ApiError extends Error {
   }
 }
 
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('gcw_token');
-}
-
-export function setToken(token: string | null) {
-  if (typeof window === 'undefined') return;
-  if (token) localStorage.setItem('gcw_token', token);
-  else localStorage.removeItem('gcw_token');
-}
+/**
+ * Auth uses an httpOnly cookie set by the backend (safe from XSS).
+ * `credentials: 'include'` sends it automatically — also works cross-origin
+ * when NEXT_PUBLIC_API_URL points at a separate API host.
+ */
 
 export async function api<T = any>(
   path: string,
@@ -23,8 +18,6 @@ export async function api<T = any>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
-  const token = getToken();
-  if (token && opts.auth !== false) headers['Authorization'] = `Bearer ${token}`;
 
   // Same-origin via the Next proxy by default; set NEXT_PUBLIC_API_URL when the
   // API is hosted separately (e.g. frontend on Vercel, API on Render).
@@ -37,6 +30,7 @@ export async function api<T = any>(
       method: opts.method || (opts.body !== undefined ? 'POST' : 'GET'),
       headers,
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      credentials: 'include',
       signal: controller.signal,
     });
     const data = await res.json().catch(() => ({}));

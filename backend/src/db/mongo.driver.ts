@@ -13,7 +13,34 @@ export class MongoDriver implements DbDriver {
   static async connect(uri: string, dbName: string): Promise<MongoDriver> {
     const drv = new MongoDriver(uri, dbName);
     await drv.client.connect();
+    await drv.ensureIndexes();
     return drv;
+  }
+
+  /** Query-performance indexes for the hot paths. Safe to run on every boot. */
+  private async ensureIndexes() {
+    const ix = async (col: string, spec: Record<string, 1 | -1>, opts: any = {}) => {
+      try { await this.c(col).createIndex(spec, opts); } catch { /* non-fatal */ }
+    };
+    await ix('users', { email: 1 }, { unique: true });
+    await ix('users', { walletAddress: 1 }, { sparse: true });
+    await ix('nonces', { address: 1 });
+    await ix('password_resets', { token: 1 });
+    await ix('email_verifications', { token: 1 });
+    await ix('blog', { slug: 1 }, { unique: true });
+    await ix('blog', { status: 1, publishedAt: -1 });
+    await ix('glossary', { slug: 1 }, { unique: true });
+    await ix('faucets', { status: 1 });
+    await ix('products', { status: 1, createdAt: -1 });
+    await ix('products', { sellerId: 1 });
+    await ix('orders', { userId: 1, createdAt: -1 });
+    await ix('orders', { orderNumber: 1 });
+    await ix('alerts', { userId: 1 });
+    await ix('notifications', { userId: 1, createdAt: -1 });
+    await ix('watchlists', { userId: 1, coinId: 1 }, { unique: true });
+    await ix('paper_accounts', { userId: 1 }, { unique: true });
+    await ix('apilogs', { at: -1 });
+    console.log('[db] MongoDB indexes ensured');
   }
 
   private c(col: string) {

@@ -67,6 +67,12 @@ export function matches(doc: Doc, filter: Doc = {}): boolean {
     const value = getPath(doc, key);
 
     if (cond !== null && typeof cond === 'object' && !Array.isArray(cond)) {
+      // Object without $operators = plain (nested) equality, like Mongo: { field: { sub: value } }
+      const hasOps = Object.keys(cond).some((k) => k.startsWith('$'));
+      if (!hasOps) {
+        if (!eqMatch(value, cond)) return false;
+        continue;
+      }
       for (const [op, operand] of Object.entries(cond as Doc)) {
         if (op === '$options') continue; // handled inside $regex
         switch (op) {
@@ -86,7 +92,7 @@ export function matches(doc: Doc, filter: Doc = {}): boolean {
             if ((value !== undefined) !== Boolean(operand)) return false;
             break;
           case '$regex': {
-            const flags = (cond as any).$options || 'i';
+            const flags = '$options' in (cond as Doc) ? String((cond as Doc).$options) : 'i';
             if (!(typeof value === 'string' && new RegExp(operand as string, flags).test(value))) return false;
             break;
           }

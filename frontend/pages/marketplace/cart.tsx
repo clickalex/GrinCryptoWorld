@@ -55,9 +55,24 @@ export default function CartPage() {
       for (const order of created) {
         if (method === 'metamask') {
           const wallet = await import('@/lib/wallet');
-          const message = `Pay GrinCryptoWorld order ${order.orderNumber}\nAmount: ${order.amountCrypto} ${order.currency}\nUSD value: $${order.amountUsd}`;
-          const signature = await wallet.signMessage(message);
-          await api(`/payments/${order._id}/confirm-metamask`, { body: { signature } });
+          if (process.env.NEXT_PUBLIC_PAYMENTS_MODE === 'transaction') {
+            // Real mode: send an actual ETH transfer to the shop address, then let the backend verify it on-chain.
+            const { address } = await wallet.connectWallet();
+            const weiHex = '0x' + (BigInt(Math.round(order.amountCrypto * 1e6)) * 10n ** 12n).toString(16);
+            const txHash = (await (window as any).ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [{ from: address, to: order.paymentAddress, value: weiHex }],
+            })) as string;
+            await api(`/payments/${order._id}/verify-tx`, { body: { txHash } });
+          } else {
+            // Demo mode: sign a payment message (no on-chain transfer).
+            const message = `Pay GrinCryptoWorld order ${order.orderNumber}\nAmount: ${order.amountCrypto} ${order.currency}\nUSD value: $${order.amountUsd}`;
+            const signature = await wallet.signMessage(message);
+            await api(`/payments/${order._id}/confirm-metamask`, { body: { signature } });
+          }
+        } else if (order.invoiceUrl) {
+          window.open(order.invoiceUrl, '_blank');
+          toast('Invoice opened in a new tab — complete the payment there.', 'info');
         } else {
           await api(`/payments/${order._id}/mock-complete`, { method: 'POST' });
         }

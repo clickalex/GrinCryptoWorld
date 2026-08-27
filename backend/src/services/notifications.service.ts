@@ -8,14 +8,22 @@ const ALERTS = 'alerts';
 
 /* ------------------------------ Channels ------------------------------ */
 
+/** Real email delivery via SMTP when configured (nodemailer); console log otherwise. */
 export async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
   if (!config.smtpUrl) {
     console.log(`[notify:email][simulated] → ${to} :: ${subject}`);
     return false;
   }
-  // Production: plug in Nodemailer with SMTP_URL here.
-  console.log(`[notify:email] → ${to} :: ${subject}`);
-  return true;
+  try {
+    const nodemailer = await import('nodemailer');
+    const transport = nodemailer.createTransport(config.smtpUrl);
+    await transport.sendMail({ from: config.smtpFrom, to, subject, text: body });
+    console.log(`[notify:email] ✉️ sent → ${to} :: ${subject}`);
+    return true;
+  } catch (e) {
+    console.error('[notify:email] delivery failed:', (e as Error).message);
+    return false;
+  }
 }
 
 export async function sendPush(userIds: string[], title: string, body: string, link?: string): Promise<boolean> {

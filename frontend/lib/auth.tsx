@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Notification, PublicUser } from '@grincrypto/shared';
-import { api, setToken, getToken } from './api';
+import { api } from './api';
 import { connectWallet, signMessage } from './wallet';
 
 interface AuthCtx {
@@ -27,12 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshUser = useCallback(async () => {
-    if (!getToken()) { setUser(null); setLoading(false); return; }
     try {
       const { user } = await api<{ user: PublicUser }>('/auth/me');
       setUser(user);
     } catch {
-      setToken(null);
       setUser(null);
     } finally {
       setLoading(false);
@@ -40,7 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshNotifications = useCallback(async () => {
-    if (!getToken()) return;
     try {
       const { items, unread } = await api<{ items: Notification[]; unread: number }>('/notifications');
       setNotifications(items);
@@ -72,13 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api<{ token: string; user: PublicUser }>('/auth/login', { body: { email, password } });
-    setToken(res.token);
     setUser(res.user);
   }, []);
 
   const register = useCallback(async (email: string, password: string, name: string) => {
     const res = await api<{ token: string; user: PublicUser }>('/auth/register', { body: { email, password, name } });
-    setToken(res.token);
     setUser(res.user);
   }, []);
 
@@ -87,14 +82,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { message } = await api<{ message: string }>('/auth/wallet/nonce', { body: { address } });
     const signature = await signMessage(message);
     const res = await api<{ token: string; user: PublicUser }>('/auth/wallet/verify', { body: { address, signature } });
-    setToken(res.token);
     setUser(res.user);
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null);
+    // Clear the httpOnly cookie server-side (best-effort) and reset local state.
+    api('/auth/logout', { method: 'POST' }).catch(() => undefined);
     setUser(null);
     setNotifications([]);
+    setUnread(0);
   }, []);
 
   const markAllRead = useCallback(async () => {

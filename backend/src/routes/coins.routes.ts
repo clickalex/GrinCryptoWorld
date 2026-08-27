@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../utils';
-import { getCoin, getCoinDetail, getGlobal, getMarkets, getPricesBySymbols, buildHistory, buildExchanges, getCoinSource } from '../services/coin.service';
+import { getCoin, getCoinDetail, getGlobal, getMarkets, getPricesBySymbols, buildHistory, buildExchanges, getOhlc, getCoinSource } from '../services/coin.service';
 
 export const coinsRouter = Router();
 
@@ -38,6 +38,12 @@ coinsRouter.get('/:id', asyncHandler(async (req, res) => {
   const coin = await getCoinDetail(req.params.id);
   if (!coin) return res.status(404).json({ error: 'Coin not found' });
   res.json({ coin, source: getCoinSource() });
+}));
+
+/** GET /api/coins/:id/ohlc?days=90 — candlestick data */
+coinsRouter.get('/:id/ohlc', asyncHandler(async (req, res) => {
+  const days = Math.min(365, Math.max(7, parseInt(req.query.days as string) || 90));
+  res.json({ id: req.params.id, days, candles: await getOhlc(req.params.id, days) });
 }));
 
 /** GET /api/coins/:id/history?days=90 */

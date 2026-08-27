@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Product } from '@shared/types';
-import { PRODUCT_CATEGORIES } from '@shared/constants';
+import { PRODUCT_CATEGORIES } from '../../../shared/constants';
 import { db, newId, now } from '../db';
 import { adminRequired, authRequired, roleRequired } from '../middleware/auth';
 import { asyncHandler, slugify } from '../utils';

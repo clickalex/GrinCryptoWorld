@@ -317,6 +317,32 @@ export async function getPricesBySymbols(symbols: string[]): Promise<Record<stri
   return Object.fromEntries(coins.map((c) => [c.symbol.toUpperCase(), c]));
 }
 
+/** OHLC candles for the candlestick chart: live CoinGecko when reachable, modeled offline. */
+export async function getOhlc(id: string, days = 90): Promise<Array<{ t: number; o: number; h: number; l: number; c: number }>> {
+  const coin = await getCoin(id);
+  if (!coin) return [];
+
+  const d = [7, 14, 30, 90, 180, 365].includes(days) ? days : 90;
+  const live = await cgFetch<number[][]>(`/coins/${coin.id}/ohlc?vs_currency=usd&days=${d}`);
+  if (Array.isArray(live) && live.length > 1) {
+    return live.map(([t, o, h, l, c]) => ({ t, o, h, l, c }));
+  }
+
+  // Offline: synthesize daily candles anchored to the real price-history series.
+  const pts = buildHistory(coin, Math.min(d, 180));
+  const rand = seededRandom(hashSeed(coin.id + 'ohlc'));
+  const out: Array<{ t: number; o: number; h: number; l: number; c: number }> = [];
+  for (let i = 1; i < pts.length; i++) {
+    const o = pts[i - 1].p;
+    const c = pts[i].p;
+    const spread = Math.abs(o - c) + o * 0.002;
+    const h = Math.max(o, c) + spread * rand() * 0.8;
+    const l = Math.max(Math.min(o, c) - spread * rand() * 0.8, 1e-12);
+    out.push({ t: pts[i].t, o, h, l, c });
+  }
+  return out;
+}
+
 /** Gas prices: live oracle when reachable, synthesized otherwise. */
 export async function getGasPrices(): Promise<GasPrices & { source: 'live' | 'fallback' }> {
   let live: any = null;

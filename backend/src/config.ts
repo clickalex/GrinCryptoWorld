@@ -24,6 +24,11 @@ export const config = {
   paymentAddress: process.env.PAYMENT_ADDRESS || '0x0000000000000000000000000000000000000000',
 
   smtpUrl: process.env.SMTP_URL || '',
+  smtpFrom: process.env.SMTP_FROM || 'GrinCryptoWorld <no-reply@grincrypto.world>',
+  webAppUrl: process.env.WEB_APP_URL || 'http://localhost:3000',
+  ethereumRpcUrl: process.env.ETHEREUM_RPC_URL || 'https://cloudflare-eth.com',
+  paymentsMode: (process.env.PAYMENTS_MODE as 'signature' | 'transaction') || 'signature',
+  adminPassword: process.env.ADMIN_PASSWORD || '',
   oneSignalAppId: process.env.ONESIGNAL_APP_ID || '',
   oneSignalApiKey: process.env.ONESIGNAL_API_KEY || '',
 

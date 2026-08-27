@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 
 const PriceChart = dynamic(() => import('@/components/coin/PriceChart'), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-slate-200/40 dark:bg-white/5" /> });
+const CandleChart = dynamic(() => import('@/components/coin/CandleChart'), { ssr: false, loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-slate-200/40 dark:bg-white/5" /> });
 
 const RANGES = [7, 30, 90, 180] as const;
 
@@ -22,7 +23,9 @@ export default function CoinDetailPage() {
   const [coin, setCoin] = useState<CoinDetail | null>(null);
   const [source, setSource] = useState('');
   const [days, setDays] = useState<number>(180);
+  const [chartMode, setChartMode] = useState<'line' | 'candles'>('line');
   const [points, setPoints] = useState<Array<{ t: number; p: number }>>([]);
+  const [candles, setCandles] = useState<Array<{ t: number; o: number; h: number; l: number; c: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertPrice, setAlertPrice] = useState('');
@@ -41,6 +44,9 @@ export default function CoinDetailPage() {
     if (!id) return;
     api<{ points: Array<{ t: number; p: number }> }>(`/coins/${id}/history?days=${days}`)
       .then((r) => setPoints(r.points))
+      .catch(() => undefined);
+    api<{ candles: Array<{ t: number; o: number; h: number; l: number; c: number }> }>(`/coins/${id}/ohlc?days=${days}`)
+      .then((r) => setCandles(r.candles))
       .catch(() => undefined);
   }, [id, days]);
 
@@ -121,17 +127,32 @@ export default function CoinDetailPage() {
         <div className="lg:col-span-2">
           {/* Chart */}
           <div className="card p-5">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-bold">{coin.name} price chart</h2>
-              <div className="flex gap-1">
-                {RANGES.map((d) => (
-                  <button key={d} onClick={() => setDays(d)} className={`rounded-lg px-3 py-1 text-xs font-bold ${days === d ? 'bg-brand-600 text-white' : 'bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300/70 dark:hover:bg-white/10'}`}>
-                    {d}d
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex gap-1">
+                  {(['line', 'candles'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setChartMode(m)}
+                      className={`rounded-lg px-3 py-1 text-xs font-bold ${chartMode === m ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300/70 dark:hover:bg-white/10'}`}
+                    >
+                      {m === 'line' ? '📈 Line' : '🕯 Candles'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  {RANGES.map((d) => (
+                    <button key={d} onClick={() => setDays(d)} className={`rounded-lg px-3 py-1 text-xs font-bold ${days === d ? 'bg-brand-600 text-white' : 'bg-slate-200/70 dark:bg-white/5 hover:bg-slate-300/70 dark:hover:bg-white/10'}`}>
+                      {d}d
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <PriceChart points={points} label={`${coin.symbol.toUpperCase()} price`} />
+            {chartMode === 'line'
+              ? <PriceChart points={points} label={`${coin.symbol.toUpperCase()} price`} />
+              : <CandleChart candles={candles} />}
             <p className="mt-3 text-[11px] text-slate-400">
               {source === 'live' ? 'Live data from CoinGecko' : 'Sandbox mode: CoinGecko unreachable — showing modeled market data'} · Updated {fmtDate(coin.lastUpdated, true)}
             </p>

@@ -1,10 +1,16 @@
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import type { BlogPost, Faucet, ForumComment, ForumThread, GlossaryTerm, Notification, Order, Product, User, Alert } from '@shared/types';
 import { BLOG_SEEDS } from './blog.data';
 import { GLOSSARY_SEEDS } from './glossary.data';
 import { FAUCET_SEEDS, FORUM_SEEDS, PRODUCT_SEEDS } from './content.data';
+import { config } from '../config';
 import { db, newId, now } from '../db';
 import { readingMinutes, slugify } from '../utils';
+
+function randomPassword(): string {
+  return randomBytes(6).toString('base64url').replace(/[-_]/g, 'x') + 'A1!';
+}
 
 export async function seedIfEmpty(): Promise<{ seeded: boolean }> {
   const existing = await db().count('users');
@@ -26,11 +32,27 @@ export async function seedIfEmpty(): Promise<{ seeded: boolean }> {
     updatedAt: now(),
   });
 
-  const admin = mkUser('admin@grincrypto.world', 'Grin Admin', 'admin', 'Admin123!', 'Platform administrator.');
-  const seller = mkUser('seller@grincrypto.world', 'Crypto Tools Co.', 'seller', 'Seller123!', 'Digital product creator since 2019.');
-  const demo = mkUser('demo@grincrypto.world', 'Demo User', 'user', 'Demo123!', 'Just here to learn and stack sats.');
-  demo.walletAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
-  await db().insertMany('users', [admin, seller, demo]);
+  const isProd = process.env.NODE_ENV === 'production';
+  // In production the admin password is generated (or taken from ADMIN_PASSWORD) —
+  // never the public demo password. Demo/seller accounts are dev-only.
+  const adminPassword = isProd ? (config.adminPassword || randomPassword()) : 'Admin123!';
+  const admin = mkUser('admin@grincrypto.world', 'Grin Admin', 'admin', adminPassword, 'Platform administrator.');
+  let seller = admin;
+  let demo = admin;
+  const users = [admin];
+  if (!isProd) {
+    seller = mkUser('seller@grincrypto.world', 'Crypto Tools Co.', 'seller', 'Seller123!', 'Digital product creator since 2019.');
+    demo = mkUser('demo@grincrypto.world', 'Demo User', 'user', 'Demo123!', 'Just here to learn and stack sats.');
+    demo.walletAddress = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
+    users.push(seller, demo);
+  }
+  await db().insertMany('users', users);
+  if (isProd && !config.adminPassword) {
+    console.log('╔══════════════════════════════════════════════════════════╗');
+    console.log(`║  GENERATED ADMIN PASSWORD (save it now, shown once):      ║`);
+    console.log(`║  admin@grincrypto.world / ${adminPassword.padEnd(31)}║`);
+    console.log('╚══════════════════════════════════════════════════════════╝');
+  }
 
   /* ------------------------------ Blog ------------------------------ */
   const posts: BlogPost[] = BLOG_SEEDS.map((p, i) => ({

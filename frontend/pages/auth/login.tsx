@@ -67,7 +67,10 @@ export default function LoginPage() {
             <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </div>
           <div>
-            <label className="label">Password</label>
+            <div className="flex items-center justify-between">
+              <label className="label">Password</label>
+              <Link href="/auth/forgot" className="mb-1.5 text-xs font-semibold text-brand-500 hover:underline">Forgot password?</Link>
+            </div>
             <input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </div>
           <button className="btn-primary w-full py-2.5" disabled={busy !== null}>

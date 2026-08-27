@@ -1,13 +1,18 @@
 import Head from 'next/head';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import type { CoinMarket, GlobalMarketData } from '@grincrypto/shared';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/lib/toast';
 import { CoinTable, GlobalStatsBar, type SortField } from '@/components/coin';
 import { Pagination, Spinner, EmptyState } from '@/components/common';
 
 const PER_PAGE = 25;
 
 export default function CoinsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [coins, setCoins] = useState<CoinMarket[]>([]);
   const [global, setGlobal] = useState<GlobalMarketData | null>(null);
   const [source, setSource] = useState('');
@@ -17,6 +22,26 @@ export default function CoinsPage() {
   const [sort, setSort] = useState<SortField>('market_cap_rank');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(true);
+  const [watchlist, setWatchlist] = useState<string[]>([]);
+
+  const loadWatchlist = useCallback(async () => {
+    if (!user) { setWatchlist([]); return; }
+    try {
+      const r = await api<{ coinIds: string[] }>('/watchlist');
+      setWatchlist(r.coinIds);
+    } catch { setWatchlist([]); }
+  }, [user]);
+
+  useEffect(() => { loadWatchlist(); }, [loadWatchlist]);
+
+  const toggleWatch = async (coinId: string) => {
+    if (!user) return toast('Sign in to save your watchlist', 'error');
+    try {
+      const r = await api<{ watching: boolean }>('/watchlist', { body: { coinId } });
+      setWatchlist((cur) => (r.watching ? [...cur, coinId] : cur.filter((c) => c !== coinId)));
+      toast(r.watching ? '⭐ Added to watchlist' : 'Removed from watchlist', 'success');
+    } catch (e: any) { toast(e.message, 'error'); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,13 +86,14 @@ export default function CoinsPage() {
           <h1 className="text-2xl font-black">Cryptocurrencies</h1>
           <p className="text-sm text-slate-500">Live market data, refreshed every 30 seconds.</p>
         </div>
-        <div className="w-full max-w-xs">
+        <div className="flex w-full max-w-xs gap-2">
           <input
             className="input"
             placeholder="Search name or symbol…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
+          <Link href="/watchlist" className="btn-ghost shrink-0 text-xs" title="My watchlist">★ Watchlist</Link>
         </div>
       </div>
 
@@ -76,7 +102,7 @@ export default function CoinsPage() {
       {loading && coins.length === 0 ? <Spinner label="Loading markets…" /> :
         coins.length === 0 ? <EmptyState icon="🔍" title="No coins found" hint={`Nothing matched “${search}”. Try another search.`} /> : (
           <>
-            <CoinTable coins={coins} sort={sort} order={order} onSort={onSort} />
+            <CoinTable coins={coins} sort={sort} order={order} onSort={onSort} watchlist={watchlist} onToggleWatch={toggleWatch} />
             <Pagination page={page} totalPages={Math.ceil(total / PER_PAGE)} onPage={setPage} total={total} />
           </>
         )}

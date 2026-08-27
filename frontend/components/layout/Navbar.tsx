@@ -10,6 +10,7 @@ import { CoinAvatar } from '@/components/common';
 
 const NAV = [
   { href: '/coins', label: 'Coins' },
+  { href: '/watchlist', label: '★', title: 'My watchlist' },
   { href: '/blog', label: 'Blog' },
   { href: '/glossary', label: 'Glossary' },
   { href: '/faucets', label: 'Faucets' },
@@ -81,6 +82,7 @@ export default function Navbar() {
             <Link
               key={item.href}
               href={item.href}
+              title={item.title}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 router.pathname.startsWith(item.href)
                   ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400'

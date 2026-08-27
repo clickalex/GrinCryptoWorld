@@ -1,68 +1,82 @@
-# 🗺️ Roadmap — What to Add Next
+# 🗺️ What to Add Next (Plain English)
 
-Priorities: **P0** = before real users · **P1** = first 1–2 months · **P2** = big bets.
+Priorities:
+- **P0 = must do before real users join**
+- **P1 = nice things for the first 1–2 months**
+- **P2 = big ideas for later**
 
-## P0 — Launch blockers (security & trust)
+## ✅ Already done (this used to be the P0 list!)
 
-| Feature | Scope | Effort |
+- ✅ **Safe login** — httpOnly cookie instead of browser storage
+- ✅ **Forgot password + email verification** — full email link flow
+- ✅ **Account lockout** — 5 wrong passwords = 15-minute lock
+- ✅ **Real emails** — SMTP support added (needs email settings)
+- ✅ **MongoDB indexes** — auto-created when a real database is connected
+- ✅ **Security headers** (helmet)
+- ✅ **Production-safe seeding** — random admin password in production, no demo accounts
+- ✅ **Automatic tests** — 27 tests, all passing
+- ✅ **GitHub Actions** — every push: typecheck → tests → build
+- ✅ **Real payment checking** — optional "transaction mode" verifies actual ETH transfers on-chain
+- ✅ **Watchlist ⭐** — star coins, see them on one page
+- ✅ **Candlestick charts 🕯️** — pro-style candles on every coin page
+- ✅ **Practice trading game 🎮** — $10,000 fake money, real prices, leaderboard
+
+## P0 — Still to do before real users
+
+| Task | What it means | Size |
 |---|---|---|
-| **httpOnly cookie auth + refresh tokens** | Move JWT out of localStorage; 15-min access + 7-day refresh rotation; logout-everywhere | M |
-| **Email verification + password reset** | Nodemailer + SMTP, tokenized links (the collection pattern already exists for wallet nonces) | M |
-| **MongoDB Atlas + indexes** | `createIndex` on users.email, blog.slug+status, products.status, orders.userId, notifications.userId+createdAt | S |
-| **Real payment settlement** | Either hosted NowPayments redirect flow (no self-custody risk) or on-chain tx verification via etherscan/Alchemy API | M |
-| **helmet + account lockout** | Security headers; 5 failed logins → 15-min lock | S |
-| **Test suite + CI** | Vitest unit tests (mongoish matcher, auth, payments webhook) + Playwright smoke; GitHub Actions: typecheck → test → build | M |
-| **Remove/rotate demo secrets** | Auto-generate admin password on first prod boot and print once | S |
+| **Connect a free MongoDB Atlas database** | One setting (`MONGODB_URI`) so data survives restarts. Get a free account at mongodb.com → create cluster → copy connection string | Small |
+| **Set a strong JWT secret + admin password** | Two settings on the hosting dashboard | Small |
+| **Add email settings (SMTP)** | Needed for password-reset emails. Mailgun/Brevo/Gmail all work | Small |
+| **Real payment mode** | Set shop wallet address + Ethereum node URL + switch `PAYMENTS_MODE=transaction` | Medium |
 
-## P1 — High-value features
+## P1 — Next few months
 
-### Markets & data
-- ⭐ **Watchlists** — star coins, persist per user, `/watchlist` view (S)
-- ⭐ **OHLC candlestick charts** — CoinGecko `/ohlc` endpoint, chart.js financial plugin (M)
-- **Coin comparison view** — overlay 2–3 assets normalized % change (S)
-- **WebSocket/SSE live prices** — server pushes cache updates; kill 30-s polling (M)
-- **Fear & Greed index + trending coins** widget on home (S)
-- **Global search upgrades** — typo-tolerant fuzzy match, keyboard nav (S)
+### Markets
+- **Compare coins** — show Bitcoin vs Ethereum on one chart (small)
+- **Instant price push** — server sends updates instead of 30-second asking (medium)
+- **"Fear & Greed" meter** + trending coins on the home page (small)
+- **Typo-friendly search** — "bitcon" still finds Bitcoin (small)
+- **More than 250 coins** in the list (small)
 
 ### Content & community
-- **Blog comments** (reuse forum comment pattern) + **cover image upload** (UploadThing/S3) (M)
-- **RSS feed + newsletter digest** — cron job already exists as a pattern (S)
-- **Forum: markdown, nested replies, report/moderation queue, accepted answers** (M)
-- **User public profiles** — activity, badges from leaderboard points (S)
+- **Comments on blog articles** (medium)
+- **Picture upload for articles** (medium)
+- **Customer reviews** — only buyers can review (medium)
+- **Forum upgrades** — nested replies, report button, moderators (medium)
+- **Public profiles** with badges (small)
 
 ### Marketplace
-- **Reviews & ratings submission** — verified buyers only (order exists & paid) (M)
-- **Real file delivery** — S3 presigned URLs, download limits, license keys (M)
-- **Seller dashboard analytics** — views, conversion, revenue charts (S)
-- **Refund flow + admin dispute resolution** (M)
+- **Real file delivery** — safe download links after purchase (medium)
+- **Seller dashboard charts** — views, sales, money earned (small)
+- **Refund flow** handled by admin (medium)
 
-### Alerts & notifications
-- **% change alerts** ("BTC moves ±5% in 24h") + **recurring** option (S)
-- **Alert history + digest emails** ("your daily market brief") (S)
-- **Telegram/Discord bot delivery channel** alongside email/push (M)
+### Alerts
+- **"Moved 5% today" alerts** (small)
+- **Daily email digest** — one summary email per day (small)
+- **Telegram/Discord alerts** (medium)
 
 ### Platform
-- **PWA** — manifest + service worker: installable, offline shell (S)
-- **Multi-currency** (EUR/GBP/INR via fx rates) + **i18n** (next-intl) (M)
-- **OpenAPI/Swagger** docs page served from the API (S)
-- **Sentry + Plausible/Umami analytics** (S)
-- **Docker + docker-compose** (mongo + api + web) for one-command local runs (S)
+- **Install as an app (PWA)** — works like a phone app, even offline shell (small)
+- **More currencies** — show prices in ₹, €, £ (medium)
+- **More languages** (medium)
+- **API documentation page** (small)
+- **Error tracking with Sentry** (small)
+- **Docker** — run everything with one command (small)
 
-## P2 — Big bets
+## P2 — Big ideas
 
-- **🤖 AI suite** — chat assistant with RAG over blog+glossary, forum sentiment scoring, weekly AI market brief (the `/ai` module + endpoints already exist as the hook)
-- **🌐 WalletConnect v2 + multi-chain** — Solana/EVM-L2 logins, SIWE (EIP-4361) standard; the `lib/wallet.ts` EIP-1193 interface was designed for this swap
-- **📈 Paper-trading simulator** — virtual portfolio with real prices, leaderboards tie into forum points
-- **📱 Real Expo mobile app** — watchlist + alerts (push) first; `mobile/` shell + shared API contract exist
-- **🔑 Public developer API** — API keys, rate limits, docs portal
-- **🪙 Gamification** — daily quests, streaks, referral links with leaderboard badges
-- **⚖️ Scale-out** — Redis cache + BullMQ queues, extract cron to worker process, readiness for multi-instance
+- **🤖 AI chat assistant** — ask questions about coins and articles; the basic brain already exists in `/ai`
+- **🌐 WalletConnect + more chains** — log in from phone wallets, Solana, L2s
+- **📈 Bigger trading game** — weekly competitions, starting balances, badges
+- **📱 Real phone app** — the starter folder exists in `/mobile`
+- **🔑 Public API** — let other developers use our data (with keys and limits)
 
-## Suggested sequence
+## Suggested order
 
 ```
-Week 1  (P0):  cookie auth → email flows → Atlas + indexes → helmet/lockout → tests+CI
-Week 2-3 (P1): watchlists → candlesticks → reviews → % alerts → PWA → Docker
-Month 2 (P1):  SSE prices → blog comments+uploads → seller analytics → multi-currency
-Month 3+ (P2): AI suite → WalletConnect → paper trading → mobile app
+This week:  connect Atlas DB → set secrets → SMTP email → re-deploy
+Next:       compare view → % alerts → PWA → blog comments
+Then:       instant prices → reviews → seller charts → more currencies
+Later:      AI chat → WalletConnect → phone app
 ```

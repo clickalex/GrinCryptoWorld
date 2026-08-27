@@ -43,7 +43,74 @@ export async function createCheckout(
     updatedAt: now(),
   };
   await db().insertOne(ORDERS, order);
+
+  // Real NowPayments invoice when an API key is configured (hosted checkout page).
+  if (method === 'nowpayments' && config.nowpaymentsKey) {
+    try {
+      const res = await fetch('https://api.nowpayments.io/v1/invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': config.nowpaymentsKey },
+        body: JSON.stringify({
+          price_amount: order.amountUsd,
+          price_currency: 'usd',
+          pay_currency: cur.toLowerCase(),
+          order_id: order.orderNumber,
+          order_description: `GrinCryptoWorld — ${product.title}`,
+          success_url: `${config.webAppUrl}/marketplace/cart`,
+          cancel_url: `${config.webAppUrl}/marketplace`,
+        }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const inv: any = await res.json();
+        const updated = await db().updateOne<Order>(ORDERS, { _id: order._id }, { $set: { invoiceUrl: inv.invoice_url } });
+        return updated ?? order;
+      }
+    } catch (e) {
+      console.warn('[payments] NowPayments invoice creation failed:', (e as Error).message);
+    }
+  }
   return order;
+}
+
+/**
+ * Verifies a real on-chain ETH transfer for an order (transaction payment mode):
+ * checks recipient, status and amount via an RPC node, then settles the order.
+ */
+export async function verifyOnchainPayment(orderId: string, txHash: string): Promise<Order> {
+  const { ethers } = await import('ethers');
+  const order = await db().findOne<Order>(ORDERS, { _id: orderId });
+  if (!order) throw Object.assign(new Error('Order not found'), { status: 404 });
+  if (order.currency !== 'ETH') {
+    throw Object.assign(new Error(`On-chain verification currently supports ETH orders only (this order is ${order.currency})`), { status: 400 });
+  }
+
+  let tx: any, receipt: any;
+  try {
+    const provider = new ethers.JsonRpcProvider(config.ethereumRpcUrl, undefined, { staticNetwork: true });
+    [tx, receipt] = await Promise.all([
+      Promise.race([provider.getTransaction(txHash), new Promise((_, rej) => setTimeout(() => rej(new Error('RPC timeout')), 10_000))]) as any,
+      Promise.race([provider.getTransactionReceipt(txHash), new Promise((_, rej) => setTimeout(() => rej(new Error('RPC timeout')), 10_000))]) as any,
+    ]);
+  } catch (e) {
+    throw Object.assign(new Error(`Could not reach the Ethereum node to verify the transaction: ${(e as Error).message}`), { status: 503 });
+  }
+
+  if (!tx || !receipt) throw Object.assign(new Error('Transaction not found on-chain (wrong hash, or not yet broadcast)'), { status: 400 });
+  if (receipt.status !== 1) throw Object.assign(new Error('Transaction failed on-chain'), { status: 400 });
+  if (!config.paymentAddress || config.paymentAddress === '0x0000000000000000000000000000000000000000') {
+    throw Object.assign(new Error('PAYMENT_ADDRESS is not configured — on-chain verification unavailable'), { status: 503 });
+  }
+  if (tx.to?.toLowerCase() !== config.paymentAddress.toLowerCase()) {
+    throw Object.assign(new Error(`Payment was sent to ${tx.to}, not the shop address`), { status: 400 });
+  }
+  const paidEth = Number(ethers.formatEther(tx.value));
+  if (paidEth + 1e-8 < order.amountCrypto) {
+    throw Object.assign(new Error(`Underpaid: sent ${paidEth.toFixed(6)} ETH, order requires ${order.amountCrypto.toFixed(6)} ETH`), { status: 400 });
+  }
+
+  const settled = await settleOrder(orderId, { txHash });
+  return settled!;
 }
 
 function orderAddr(cur: string): string {

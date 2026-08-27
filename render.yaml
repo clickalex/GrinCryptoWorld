@@ -37,6 +37,16 @@ services:
         sync: false
       - key: ONESIGNAL_API_KEY
         sync: false
+      - key: SMTP_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Public frontend URL (used in password-reset email links):
+      - key: WEB_APP_URL
+        fromService:
+          name: grincrypto-web
+          type: web
+          property: host
 
   # ─────────────────────────── Next.js frontend ───────────────────────────
   - type: web

@@ -2,11 +2,19 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { ethers } from 'ethers';
 import type { PublicUser, User } from '@shared/types';
+import { config } from '../config';
 import { db, newId, now } from '../db';
 import { isValidEmail } from '../utils';
+import { sendEmail } from './notifications.service';
 
 const USERS = 'users';
 const NONCES = 'nonces';
+const RESETS = 'password_resets';
+const VERIFICATIONS = 'email_verifications';
+
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MINUTES = 15;
+const RESET_TTL_MINUTES = 60;
 
 export async function register(email: string, password: string, name: string): Promise<User> {
   email = email.trim().toLowerCase();
@@ -32,7 +40,27 @@ export async function register(email: string, password: string, name: string): P
 export async function login(email: string, password: string): Promise<User> {
   const user = await db().findOne<User>(USERS, { email: email.trim().toLowerCase() });
   if (!user?.passwordHash) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
-  if (!bcrypt.compareSync(password, user.passwordHash)) throw Object.assign(new Error('Invalid credentials'), { status: 401 });
+
+  // Account lockout: too many failed attempts → temporary block (brute-force protection).
+  if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+    const mins = Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000);
+    throw Object.assign(new Error(`Account temporarily locked after too many failed attempts. Try again in ${mins} minute(s).`), { status: 423 });
+  }
+
+  if (!bcrypt.compareSync(password, user.passwordHash)) {
+    const failed = (user.failedLogins ?? 0) + 1;
+    const set: Record<string, any> = { failedLogins: failed, updatedAt: now() };
+    if (failed >= MAX_FAILED_LOGINS) {
+      set.lockedUntil = new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString();
+      set.failedLogins = 0;
+    }
+    await db().updateOne(USERS, { _id: user._id }, { $set: set });
+    throw Object.assign(new Error('Invalid credentials'), { status: 401 });
+  }
+
+  if (user.failedLogins || user.lockedUntil) {
+    await db().updateOne(USERS, { _id: user._id }, { $set: { failedLogins: 0, lockedUntil: undefined } });
+  }
   return user;
 }
 
@@ -91,6 +119,65 @@ export async function verifyWalletSignature(address: string, signature: string):
 
 export async function getProfile(userId: string): Promise<User | null> {
   return db().findOne<User>(USERS, { _id: userId });
+}
+
+/* -------------------- Password reset (email token flow) -------------------- */
+
+/** Creates a one-time reset token and emails the link. Always resolves (never reveals if the email exists). */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const user = await db().findOne<User>(USERS, { email: email.trim().toLowerCase() });
+  if (!user) return; // silently ignore unknown emails (no account enumeration)
+
+  const token = randomBytes(32).toString('hex');
+  await db().deleteMany(RESETS, { userId: user._id });
+  await db().insertOne(RESETS, {
+    _id: newId(),
+    userId: user._id,
+    token,
+    expiresAt: new Date(Date.now() + RESET_TTL_MINUTES * 60_000).toISOString(),
+  });
+
+  const link = `${config.webAppUrl}/auth/reset?token=${token}`;
+  await sendEmail(
+    user.email,
+    'Reset your GrinCryptoWorld password',
+    `Hello ${user.name},\n\nWe received a request to reset your password. Open this link within ${RESET_TTL_MINUTES} minutes:\n\n${link}\n\nIf you didn't request this, you can safely ignore this email.`
+  );
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  if (!token || !newPassword || newPassword.length < 8) {
+    throw Object.assign(new Error('A valid token and a password of at least 8 characters are required'), { status: 400 });
+  }
+  const record = await db().findOne<any>(RESETS, { token: String(token).trim() });
+  if (!record || new Date(record.expiresAt) < new Date()) {
+    throw Object.assign(new Error('This reset link is invalid or has expired — request a new one'), { status: 400 });
+  }
+  await db().updateOne<User>(USERS, { _id: record.userId }, {
+    $set: { passwordHash: bcrypt.hashSync(newPassword, 10), failedLogins: 0, lockedUntil: undefined, updatedAt: now() },
+  });
+  await db().deleteMany(RESETS, { userId: record.userId });
+}
+
+/* -------------------- Email verification (optional, non-blocking) -------------------- */
+
+export async function sendEmailVerification(userId: string): Promise<void> {
+  const user = await db().findOne<User>(USERS, { _id: userId });
+  if (!user || user.emailVerified) return;
+  const token = randomBytes(32).toString('hex');
+  await db().deleteMany(VERIFICATIONS, { userId });
+  await db().insertOne(VERIFICATIONS, { _id: newId(), userId, token, expiresAt: new Date(Date.now() + 24 * 3600_000).toISOString() });
+  const link = `${config.webAppUrl}/auth/verify?token=${token}`;
+  await sendEmail(user.email, 'Verify your email — GrinCryptoWorld', `Welcome ${user.name}!\n\nConfirm your email address by opening this link within 24 hours:\n\n${link}`);
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+  const record = await db().findOne<any>(VERIFICATIONS, { token: String(token).trim() });
+  if (!record || new Date(record.expiresAt) < new Date()) {
+    throw Object.assign(new Error('This verification link is invalid or has expired'), { status: 400 });
+  }
+  await db().updateOne(USERS, { _id: record.userId }, { $set: { emailVerified: true, updatedAt: now() } });
+  await db().deleteMany(VERIFICATIONS, { userId: record.userId });
 }
 
 export async function updateProfile(

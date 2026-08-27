@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Faucet } from '@shared/types';
-import { PAYOUT_METHODS } from '@shared/constants';
+import { PAYOUT_METHODS } from '../../../shared/constants';
 import { db, newId, now } from '../db';
 import { adminRequired, authRequired } from '../middleware/auth';
 import { asyncHandler } from '../utils';

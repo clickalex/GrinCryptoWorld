@@ -1,23 +1,37 @@
 import { Router } from 'express';
 import { asyncHandler } from '../utils';
-import { authRequired, rateLimit, signToken, toPublicUser } from '../middleware/auth';
-import { createNonce, login, register, updateProfile, verifyWalletSignature, getProfile } from '../services/auth.service';
+import { authRequired, clearAuthCookie, rateLimit, setAuthCookie, signToken, toPublicUser } from '../middleware/auth';
+import {
+  createNonce, login, register, updateProfile, verifyWalletSignature, getProfile,
+  requestPasswordReset, resetPassword, sendEmailVerification, verifyEmail,
+} from '../services/auth.service';
 
 export const authRouter = Router();
 
-/** POST /api/auth/register — email + password signup */
+/** POST /api/auth/register — email + password signup (sends verification email when SMTP configured) */
 authRouter.post('/register', rateLimit(10), asyncHandler(async (req, res) => {
   const { email, password, name } = req.body || {};
   const user = await register(email, password, name);
-  res.status(201).json({ token: signToken(user), user: toPublicUser(user) });
+  const token = signToken(user);
+  setAuthCookie(res, token);
+  sendEmailVerification(user._id).catch(() => undefined);
+  res.status(201).json({ token, user: toPublicUser(user) });
 }));
 
 /** POST /api/auth/login — email + password login */
 authRouter.post('/login', rateLimit(10), asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   const user = await login(email, password);
-  res.json({ token: signToken(user), user: toPublicUser(user) });
+  const token = signToken(user);
+  setAuthCookie(res, token);
+  res.json({ token, user: toPublicUser(user) });
 }));
+
+/** POST /api/auth/logout — clears the httpOnly cookie */
+authRouter.post('/logout', (_req, res) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
+});
 
 /** POST /api/auth/wallet/nonce — get a MetaMask sign-in challenge */
 authRouter.post('/wallet/nonce', rateLimit(20), asyncHandler(async (req, res) => {
@@ -30,7 +44,40 @@ authRouter.post('/wallet/nonce', rateLimit(20), asyncHandler(async (req, res) =>
 authRouter.post('/wallet/verify', rateLimit(20), asyncHandler(async (req, res) => {
   const { address, signature } = req.body || {};
   const user = await verifyWalletSignature(address, signature);
-  res.json({ token: signToken(user), user: toPublicUser(user) });
+  const token = signToken(user);
+  setAuthCookie(res, token);
+  res.json({ token, user: toPublicUser(user) });
+}));
+
+/** POST /api/auth/forgot-password — emails a one-time reset link (never reveals whether the email exists) */
+authRouter.post('/forgot-password', rateLimit(5), asyncHandler(async (req, res) => {
+  const { email } = req.body || {};
+  if (email) await requestPasswordReset(email);
+  res.json({ ok: true, message: 'If that email is registered, a reset link is on its way.' });
+}));
+
+/** POST /api/auth/reset-password — consume the token and set a new password */
+authRouter.post('/reset-password', rateLimit(5), asyncHandler(async (req, res) => {
+  const { token, password } = req.body || {};
+  await resetPassword(token, password);
+  clearAuthCookie(res);
+  res.json({ ok: true, message: 'Password updated — you can sign in now.' });
+}));
+
+/** GET /api/auth/verify-email?token=… — marks the account as verified */
+authRouter.get('/verify-email', asyncHandler(async (req, res) => {
+  try {
+    await verifyEmail(String(req.query.token || ''));
+    res.json({ ok: true, message: 'Email verified ✅' });
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+}));
+
+/** POST /api/auth/resend-verification (auth) */
+authRouter.post('/resend-verification', authRequired, asyncHandler(async (req, res) => {
+  await sendEmailVerification(req.user!.id);
+  res.json({ ok: true });
 }));
 
 /** GET /api/auth/me — current profile */

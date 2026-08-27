@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { config } from './config';
 import { apiLogger, errorHandler } from './middleware/apilog';
 import { authRouter } from './routes/auth.routes';
@@ -14,12 +15,15 @@ import { notificationsRouter } from './routes/notifications.routes';
 import { toolsRouter } from './routes/tools.routes';
 import { adminRouter } from './routes/admin.routes';
 import { forumRouter } from './routes/forum.routes';
+import { watchlistRouter } from './routes/watchlist.routes';
+import { paperRouter } from './routes/paper.routes';
 import { searchRouter, aiRouter } from './routes/misc.routes';
 import { getCoinSource } from './services/coin.service';
 
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(','), credentials: true }));
   app.use(express.json({ limit: '2mb' }));
 
@@ -49,6 +53,8 @@ export function createApp() {
   app.use('/api/tools', toolsRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/forum', forumRouter);
+  app.use('/api/watchlist', watchlistRouter);
+  app.use('/api/paper', paperRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/ai', aiRouter);
 

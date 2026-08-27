@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { BlogPost } from '@shared/types';
-import { BLOG_CATEGORIES } from '@shared/constants';
+import { BLOG_CATEGORIES } from '../../../shared/constants';
 import { db, newId, now } from '../db';
 import { adminRequired, authRequired } from '../middleware/auth';
 import { asyncHandler, readingMinutes, slugify } from '../utils';
