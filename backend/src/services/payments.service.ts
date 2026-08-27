@@ -128,7 +128,14 @@ export async function settleOrder(orderId: string, meta: { txHash?: string; sign
   });
   const product = await db().findOne<any>('products', { _id: order.productId });
   if (product) {
-    await db().updateOne('products', { _id: product._id }, { $set: { stock: Math.max(0, product.stock - 1), sales: product.sales + 1, updatedAt: now() } });
+    if (product.stock <= 0) {
+      // Oversell guard: payment arrived but the item sold out — fail the order honestly.
+      const failed = await db().updateOne<Order>(ORDERS, { _id: orderId }, { $set: { status: 'failed', updatedAt: now() } });
+      await notifyUser(order.userId, `⚠️ ${order.productTitle} sold out`, `Order ${order.orderNumber} could not be fulfilled (item sold out) and will be refunded. Sorry!`, { kind: 'order', link: '/dashboard' });
+      console.warn(`[payments] oversell blocked for order ${order.orderNumber}`);
+      return failed ?? updated;
+    }
+    await db().updateOne('products', { _id: product._id }, { $set: { stock: product.stock - 1, sales: product.sales + 1, updatedAt: now() } });
     if (product.sellerId) {
       await notifyUser(product.sellerId, `💸 New sale: ${product.title}`, `Order ${order.orderNumber} paid — ${order.amountCrypto} ${order.currency} ($${order.amountUsd}).`, { kind: 'order', link: '/dashboard' });
     }
@@ -137,7 +144,21 @@ export async function settleOrder(orderId: string, meta: { txHash?: string; sign
   return updated;
 }
 
-/** NowPayments-style IPN webhook: HMAC-SHA512 over the sorted JSON body. */
+/** NowPayments signs the IPN over the JSON with keys sorted RECURSIVELY. */
+function sortDeep(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(sortDeep);
+  if (obj && typeof obj === 'object') {
+    return Object.keys(obj)
+      .sort()
+      .reduce((acc, k) => {
+        acc[k] = sortDeep(obj[k]);
+        return acc;
+      }, {} as any);
+  }
+  return obj;
+}
+
+/** NowPayments-style IPN webhook: HMAC-SHA512 over the recursively sorted JSON body. */
 export async function handleWebhook(rawBody: string, signature: string | undefined): Promise<Order | null> {
   let payload: any;
   try {
@@ -146,7 +167,7 @@ export async function handleWebhook(rawBody: string, signature: string | undefin
     throw Object.assign(new Error('Invalid JSON body'), { status: 400 });
   }
 
-  const sorted = JSON.stringify(payload, Object.keys(payload).sort());
+  const sorted = JSON.stringify(sortDeep(payload));
   const expected = createHmac('sha512', config.nowpaymentsIpnSecret).update(sorted).digest('hex');
   const valid = signature === expected;
 

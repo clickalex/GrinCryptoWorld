@@ -184,4 +184,121 @@ describe('payments', () => {
     const res = await request(app).post('/api/payments/webhook').set('x-nowpayments-sig', sig).send(payload);
     expect(res.status).toBe(404);
   });
+
+  it('verifies webhooks with NESTED payloads via recursive key sorting (strict mode)', async () => {
+    const { config } = await import('../config');
+    const prevKey = config.nowpaymentsKey;
+    config.nowpaymentsKey = 'test-key'; // enable strict signature enforcement
+
+    try {
+      const payload = {
+        payment_status: 'finished',
+        order_id: 'GCW-NESTED-1',
+        payin: { amount: 0.1, currency: 'eth', address: '0xabc', nested: { deep: true } },
+        outcome_amount: 0.1,
+      };
+      const sortDeep = (o: any): any =>
+        Array.isArray(o) ? o.map(sortDeep)
+          : o && typeof o === 'object'
+            ? Object.keys(o).sort().reduce((a, k) => { a[k] = sortDeep(o[k]); return a; }, {} as any)
+            : o;
+      const sig = createHmac('sha512', config.nowpaymentsIpnSecret).update(JSON.stringify(sortDeep(payload))).digest('hex');
+      const flatSig = createHmac('sha512', config.nowpaymentsIpnSecret)
+        .update(JSON.stringify(payload, Object.keys(payload).sort()))
+        .digest('hex');
+
+      const good = await request(app).post('/api/payments/webhook').set('x-nowpayments-sig', sig).send(payload);
+      expect(good.status).toBe(404); // signature accepted, order unknown
+
+      const bad = await request(app).post('/api/payments/webhook').set('x-nowpayments-sig', flatSig).send(payload);
+      expect(bad.status).toBe(401); // legacy flat sorting must FAIL for nested payloads
+    } finally {
+      config.nowpaymentsKey = prevKey;
+    }
+  });
+});
+
+/* ───────────── Audit-round regressions (Rounds 1–4) ───────────── */
+
+let adminCookie = '';
+
+async function adminLogin() {
+  const res = await request(app).post('/api/auth/login').send({ email: 'admin@grincrypto.world', password: 'Admin123!' });
+  const setCookie = res.headers['set-cookie'] as unknown as string[];
+  adminCookie = setCookie.find((c: string) => c.startsWith('gcw_token='))!;
+  return res;
+}
+
+describe('audit rounds 1–2: role-aware public listings', () => {
+  it('lets admins create and see drafts; the public never does', async () => {
+    await adminLogin();
+    const created = await request(app).post('/api/blog').set('Cookie', adminCookie).send({
+      title: 'Regression draft article',
+      content: 'A draft used to verify role-aware blog listing after the optionalAuth fix.',
+      category: 'Guides', status: 'draft',
+    });
+    expect(created.status).toBe(201);
+
+    const adminDrafts = await request(app).get('/api/blog?status=draft').set('Cookie', adminCookie);
+    expect(adminDrafts.body.items.some((p: any) => p.slug === created.body.post.slug)).toBe(true);
+
+    const anonDrafts = await request(app).get('/api/blog?status=draft');
+    expect(anonDrafts.body.items.some((p: any) => p.slug === created.body.post.slug)).toBe(false);
+
+    const adminAll = await request(app).get('/api/blog?status=all&perPage=50').set('Cookie', adminCookie);
+    expect(adminAll.body.items.some((p: any) => p.slug === created.body.post.slug)).toBe(true);
+  });
+
+  it('status=all includes pending products for admins, approved-only for everyone else', async () => {
+    const anon = await request(app).get('/api/products');
+    expect(anon.body.items.every((p: any) => p.status === 'approved')).toBe(true);
+
+    const admin = await request(app).get('/api/products?status=all').set('Cookie', adminCookie);
+    expect(admin.body.items.some((p: any) => p.status === 'pending')).toBe(true);
+    expect(admin.body.items.length).toBeGreaterThan(anon.body.items.length);
+  });
+
+  it('faucets: admins see paused listings, the public sees active only', async () => {
+    const anon = await request(app).get('/api/faucets');
+    expect(anon.body.items.every((f: any) => f.status === 'active')).toBe(true);
+    const admin = await request(app).get('/api/faucets').set('Cookie', adminCookie);
+    expect(admin.body.items.length).toBeGreaterThanOrEqual(anon.body.items.length);
+  });
+});
+
+describe('audit round 3: oversell guard', () => {
+  it('fails the order when stock hits zero before settlement', async () => {
+    const sellerRes = await request(app).post('/api/auth/login').send({ email: 'seller@grincrypto.world', password: 'Seller123!' });
+    const sCookie = (sellerRes.headers['set-cookie'] as unknown as string[]).find((c: string) => c.startsWith('gcw_token='))!;
+
+    const product = await request(app).post('/api/products').set('Cookie', sCookie).send({
+      title: 'Oversell guard test item', description: 'One copy only, used to verify the oversell guard.',
+      priceUsd: 10, stock: 1, category: 'E-books',
+    });
+    expect(product.status).toBe(201);
+
+    // seller listings start pending — an admin must approve before checkout (verified en route)
+    const approve = await request(app).post(`/api/products/${product.body.product._id}/review`).set('Cookie', adminCookie).send({ status: 'approved' });
+    expect(approve.status).toBe(200);
+
+    const order = await request(app).post('/api/payments/checkout').set('Cookie', cookie).send({ productId: product.body.product._id, currency: 'ETH', method: 'metamask' });
+    expect(order.status).toBe(201);
+
+
+    await request(app).put(`/api/products/${product.body.product._id}`).set('Cookie', sCookie).send({ stock: 0 });
+
+    const settle = await request(app).post(`/api/payments/${order.body.order._id}/confirm-metamask`).set('Cookie', cookie).send({ signature: '0xtest' });
+    expect(settle.status).toBe(200);
+    expect(settle.body.order.status).toBe('failed'); // oversell blocked, not falsely 'paid'
+  });
+});
+
+describe('audit round 4: glossary duplicate-slug guard', () => {
+  it('rejects renaming a term to an existing term (409)', async () => {
+    const list = await request(app).get('/api/glossary');
+    const a = list.body.items[0];
+    const b = list.body.items[1];
+    const rename = await request(app).put(`/api/glossary/${a._id}`).set('Cookie', adminCookie).send({ term: b.term });
+    expect(rename.status).toBe(409);
+  });
 });

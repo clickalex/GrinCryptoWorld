@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://grincrypto-world.onrender.com';
-const API = process.env.API_SSR_URL || process.env.API_PROXY_TARGET || 'http://localhost:4000';
+const rawApi = process.env.API_SSR_URL || process.env.API_PROXY_TARGET || 'http://localhost:4000';
+// Targets like Render's fromService supply a bare host — normalize to https://.
+const API = rawApi.startsWith('http') ? rawApi : `https://${rawApi}`;
 
 const STATIC_ROUTES: Array<[string, string, number]> = [
   ['', 'daily', 1.0],

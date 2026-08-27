@@ -127,7 +127,8 @@ export default function CartPage() {
           </div>
           <label className="label">Currency</label>
           <select className="input mb-3" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {SUPPORTED_PAYMENT_CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+            {/* On-chain verification supports ETH only — restrict in transaction mode */}
+            {(process.env.NEXT_PUBLIC_PAYMENTS_MODE === 'transaction' && method === 'metamask' ? ['ETH'] : SUPPORTED_PAYMENT_CURRENCIES).map((c) => <option key={c}>{c}</option>)}
           </select>
           <div className="mb-4 rounded-lg bg-slate-100 p-3 text-sm dark:bg-white/5">
             You pay ≈ <span className="font-black text-brand-500">{cryptoTotal ? `${cryptoTotal.toFixed(cryptoTotal < 1 ? 6 : 4)} ${currency}` : '…'}</span>

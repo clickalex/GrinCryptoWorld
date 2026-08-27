@@ -19,6 +19,7 @@ export default defineConfig({
       MEMORY_DB_PATH: './backend/data/test-memory-db.json',
       SEED_ON_BOOT: 'false',
       JWT_SECRET: 'test-secret',
+      RATE_LIMIT_OFF: 'true',
     },
     testTimeout: 20000,
     hookTimeout: 20000,

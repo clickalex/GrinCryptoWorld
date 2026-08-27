@@ -8,7 +8,7 @@ export interface Candle { t: number; o: number; h: number; l: number; c: number 
 
 export default function CandleChart({ candles, height = 340 }: { candles: Candle[]; height?: number }): ReactElement | null {
   if (!candles || candles.length < 2) {
-    return <div className="grid place-items-center text-sm text-slate-400" style={{ height }}>Not enough data for candles</div>;
+    return <div className="grid place-items-center text-sm text-slate-400" style={{ height: height ?? 340 }}>Not enough data for candles</div>;
   }
 
   const W = 1000;
@@ -40,7 +40,7 @@ export default function CandleChart({ candles, height = 340 }: { candles: Candle
   const labelEvery = Math.ceil(candles.length / 6);
 
   return (
-    <div style={{ height }} className="w-full">
+    <div style={{ aspectRatio: `${W} / ${H}` }} className="w-full">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="Candlestick chart">
         {/* horizontal grid + price labels */}
         {Array.from({ length: gridLines + 1 }, (_, i) => {

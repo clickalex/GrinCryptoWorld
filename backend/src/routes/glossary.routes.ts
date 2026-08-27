@@ -62,7 +62,13 @@ glossaryRouter.put('/:id', authRequired, adminRequired, asyncHandler(async (req,
   const cur = await db().findOne<GlossaryTerm>('glossary', { _id: req.params.id });
   if (!cur) return res.status(404).json({ error: 'Term not found' });
   const set: Record<string, any> = { updatedAt: now() };
-  if (req.body.term !== undefined) { set.term = String(req.body.term).trim(); set.slug = slugify(req.body.term); }
+  if (req.body.term !== undefined) {
+    const nextSlug = slugify(req.body.term);
+    const clash = await db().findOne<GlossaryTerm>('glossary', { slug: nextSlug });
+    if (clash && clash._id !== cur._id) return res.status(409).json({ error: `Another term already uses the slug "${nextSlug}"` });
+    set.term = String(req.body.term).trim();
+    set.slug = nextSlug;
+  }
   if (req.body.definition !== undefined) set.definition = req.body.definition;
   if (req.body.extended !== undefined) set.extended = req.body.extended;
   if (req.body.category !== undefined) set.category = req.body.category;

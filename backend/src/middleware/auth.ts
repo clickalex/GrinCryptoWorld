@@ -67,6 +67,19 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+/** Attaches req.user when a valid token/cookie is present, but never rejects. *
+ *  Lets public endpoints vary their response by role (e.g. admins see drafts). */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const token = getTokenFromReq(req);
+  if (token) {
+    try {
+      const payload = jwt.verify(token, config.jwtSecret) as any;
+      req.user = { id: payload.sub, email: payload.email, role: payload.role, walletAddress: payload.walletAddress };
+    } catch { /* anonymous */ }
+  }
+  next();
+}
+
 export function roleRequired(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'Authentication required' });
@@ -77,10 +90,12 @@ export function roleRequired(...roles: Role[]) {
 
 export const adminRequired = roleRequired('admin');
 
-/** Simple sliding-window rate limiter (per IP) for sensitive endpoints. */
+/** Simple sliding-window rate limiter (per IP) for sensitive endpoints.
+ *  Disabled when RATE_LIMIT_OFF=true (used by the test suite, which logs in many times). */
 const hits = new Map<string, { count: number; reset: number }>();
 export function rateLimit(max = 20, windowMs = 60_000) {
   return (req: Request, res: Response, next: NextFunction) => {
+    if (process.env.RATE_LIMIT_OFF === 'true') return next();
     const key = `${req.ip}:${req.path}`;
     const nowMs = Date.now();
     const entry = hits.get(key);

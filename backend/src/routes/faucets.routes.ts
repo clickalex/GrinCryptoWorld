@@ -8,10 +8,12 @@ import { fanOutNews } from '../services/notifications.service';
 
 export const faucetsRouter = Router();
 
-/** GET /api/faucets?coin=&payout=&status= */
+/** GET /api/faucets?coin=&payout=&status= — active listings for the public; admins see every status by default */
 faucetsRouter.get('/', asyncHandler(async (req, res) => {
   const isAdmin = (req as any).user?.role === 'admin';
-  const filter: any = { status: req.query.status && isAdmin ? req.query.status : 'active' };
+  const filter: any = {};
+  if (isAdmin && req.query.status) filter.status = req.query.status; // admin filtering a specific status
+  else if (!isAdmin) filter.status = 'active'; // public: active only; admin default: all
   if (req.query.coin) filter.coins = { $in: [String(req.query.coin).toUpperCase()] };
   if (req.query.payout) filter.payoutMethod = req.query.payout;
   if (req.query.search) {

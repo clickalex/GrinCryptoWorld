@@ -7,13 +7,17 @@ import { asyncHandler, slugify } from '../utils';
 
 export const productsRouter = Router();
 
-/** GET /api/products?search=&category=&sort=&seller=mine — approved listings (admins see all) */
+/** GET /api/products?search=&category=&sort=&seller=mine&status=all — approved listings (admins see all) */
 productsRouter.get('/', asyncHandler(async (req, res) => {
   const role = (req as any).user?.role;
   const filter: any = {};
-  if (req.query.status && role === 'admin') filter.status = req.query.status;
-  else if (role !== 'admin') filter.status = 'approved';
-  if (!Object.keys(filter).length && role !== 'admin') filter.status = 'approved';
+  const wantsAll = !req.query.status || req.query.status === 'all';
+
+  if (role === 'admin' && !wantsAll) {
+    filter.status = req.query.status; // admin filtering a specific status
+  } else if (role !== 'admin') {
+    filter.status = 'approved'; // everyone else only ever sees approved
+  } // admin + all → no status filter
 
   if (req.query.seller === 'mine' && (req as any).user) filter.sellerId = (req as any).user.id;
   else if (req.query.sellerId) filter.sellerId = req.query.sellerId;

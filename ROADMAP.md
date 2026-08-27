@@ -14,7 +14,7 @@ Priorities:
 - ✅ **MongoDB indexes** — auto-created when a real database is connected
 - ✅ **Security headers** (helmet)
 - ✅ **Production-safe seeding** — random admin password in production, no demo accounts
-- ✅ **Automatic tests** — 27 tests, all passing
+- ✅ **Automatic tests** — 33 tests, all passing
 - ✅ **GitHub Actions** — every push: typecheck → tests → build
 - ✅ **Real payment checking** — optional "transaction mode" verifies actual ETH transfers on-chain
 - ✅ **Watchlist ⭐** — star coins, see them on one page

@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { hasWallet } from '@/lib/wallet';
@@ -13,6 +13,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState<'email' | 'wallet' | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Wallet detection differs server vs client — render the hint only after mount (no hydration warning).
+  useEffect(() => setMounted(true), []);
 
   const doLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +59,7 @@ export default function LoginPage() {
         >
           {busy === 'wallet' ? 'Check your wallet…' : '🦊 Continue with MetaMask'}
         </button>
-        {!hasWallet() && <p className="mt-2 text-center text-xs text-slate-400">No wallet detected — install MetaMask, or use email below.</p>}
+        {mounted && !hasWallet() && <p className="mt-2 text-center text-xs text-slate-400">No wallet detected — install MetaMask, or use email below.</p>}
 
         <div className="my-5 flex items-center gap-3 text-xs text-slate-400">
           <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" /> or with email <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />

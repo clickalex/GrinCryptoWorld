@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
 import { apiLogger, errorHandler } from './middleware/apilog';
+import { optionalAuth } from './middleware/auth';
 import { authRouter } from './routes/auth.routes';
 import { blogRouter } from './routes/blog.routes';
 import { glossaryRouter } from './routes/glossary.routes';
@@ -35,13 +36,14 @@ export function createApp() {
   });
 
   app.use(apiLogger);
+  // Role-aware public endpoints (blog drafts, pending products, seller listings) need this.
+  app.use(optionalAuth);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'grincrypto-backend', time: new Date().toISOString(), coinSource: getCoinSource() });
   });
 
   app.use('/api/auth', authRouter);
-  app.use('/api/users', authRouter); // /api/users/me aliases /api/auth/me
   app.use('/api/blog', blogRouter);
   app.use('/api/glossary', glossaryRouter);
   app.use('/api/faucets', faucetsRouter);

@@ -63,7 +63,7 @@ simple words. Each problem has a colored dot:
 
 | Problem | Status |
 |---|---|
-| ~~No automatic tests~~ | ✅ **FIXED** — 27 tests now cover login, password reset, lockout, watchlist, trading game, payments and more |
+| ~~No automatic tests~~ | ✅ **FIXED** — 33 tests now cover login, password reset, lockout, watchlist, trading game, payments and more |
 | ~~No GitHub Actions (auto-check)~~ | ✅ **FIXED** — every push now runs typecheck + tests + builds automatically |
 | **No Docker** | 🟡 Still missing |
 | **No API documentation page** | 🟡 README table only |

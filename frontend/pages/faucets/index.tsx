@@ -26,7 +26,7 @@ export default function FaucetsPage() {
       if (coin) q.set('coin', coin);
       if (payout) q.set('payout', payout);
       if (search) q.set('search', search);
-      if (user?.role === 'admin') q.set('status', 'active'); // admin list toggle handled below
+      // admins intentionally see every status (including paused) so they can manage listings
       const res = await api<{ items: Faucet[]; coins: string[] }>(`/faucets?${q}`);
       setFaucets(res.items);
       setCoins(res.coins);

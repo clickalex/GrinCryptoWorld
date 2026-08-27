@@ -31,6 +31,13 @@ services:
         sync: false
       - key: NOWPAYMENTS_IPN_SECRET
         sync: false
+      # signature (demo) or transaction (verify real on-chain ETH transfers):
+      - key: PAYMENTS_MODE
+        sync: false
+      - key: PAYMENT_ADDRESS
+        sync: false
+      - key: ETHEREUM_RPC_URL
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: ONESIGNAL_APP_ID

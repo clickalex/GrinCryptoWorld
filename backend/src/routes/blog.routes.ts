@@ -9,12 +9,17 @@ import { summarize } from '../services/ai.service';
 
 export const blogRouter = Router();
 
-/** GET /api/blog?search=&category=&tag=&status=&page=&perPage= */
+/** GET /api/blog?search=&category=&tag=&status=&page=&perPage= — published (admins may filter drafts/all) */
 blogRouter.get('/', asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const perPage = Math.min(50, Math.max(1, parseInt(req.query.perPage as string) || 12));
   const isAdmin = (req as any).user?.role === 'admin';
-  const filter: any = { status: req.query.status && isAdmin ? req.query.status : 'published' };
+  const filter: any = {};
+  if (isAdmin && req.query.status && req.query.status !== 'all') {
+    filter.status = req.query.status; // admin filtering a specific status (e.g. drafts)
+  } else if (!(isAdmin && req.query.status === 'all')) {
+    filter.status = 'published'; // default for everyone; admins passing status=all see everything
+  }
   if (req.query.category) filter.category = req.query.category;
   if (req.query.tag) filter.tags = req.query.tag;
   if (req.query.authorId) filter.authorId = req.query.authorId;
