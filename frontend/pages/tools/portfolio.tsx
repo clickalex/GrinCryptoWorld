@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import type { GlobalMarketData } from '@grincrypto/shared';
 import { api } from '@/lib/api';
@@ -6,6 +7,8 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { ChangeBadge, CoinAvatar, EmptyState, Spinner } from '@/components/common';
 import { changeColor, fmtCompactUsd, fmtPct, fmtUsd } from '@/lib/format';
+
+const AllocationDonut = dynamic(() => import('@/components/tools/AllocationDonut'), { ssr: false });
 
 interface Asset { id: string; symbol: string; name: string; price: number; change24h: number }
 interface Holding { symbol: string; amount: number; buyPrice: number }
@@ -104,6 +107,32 @@ export default function PortfolioPage() {
           <div className="label">Return</div>
           <div className={`text-2xl font-black ${changeColor(totalPnlPct)}`}>{fmtPct(totalPnlPct)}</div>
         </div>
+      </div>
+
+      <div className="mb-6 grid gap-4 lg:grid-cols-3">
+        <div className={`card p-5 ${rows.length ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+          <h2 className="mb-3 font-bold">Allocation</h2>
+          {rows.length === 0 ? (
+            <p className="text-sm text-slate-500">Add holdings to see your allocation breakdown.</p>
+          ) : (
+            <AllocationDonut labels={rows.map((r) => r.symbol)} values={rows.map((r) => Math.max(r.value, 0))} />
+          )}
+        </div>
+        {rows.length > 0 && (
+          <div className="card p-5">
+            <h2 className="mb-3 font-bold">Top holdings</h2>
+            <div className="space-y-2.5">
+              {[...rows].sort((a, b) => b.value - a.value).slice(0, 5).map((r) => (
+                <div key={r.symbol} className="flex items-center gap-2 text-sm">
+                  <CoinAvatar symbol={r.symbol} size={20} />
+                  <b>{r.symbol}</b>
+                  <span className="ml-auto text-slate-500">{fmtUsd(r.value)}</span>
+                  <span className={`w-20 text-right font-semibold ${changeColor(r.pnlPct)}`}>{fmtPct(r.pnlPct)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add form */}

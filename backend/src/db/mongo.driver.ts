@@ -38,6 +38,8 @@ export class MongoDriver implements DbDriver {
     await ix('alerts', { userId: 1 });
     await ix('notifications', { userId: 1, createdAt: -1 });
     await ix('watchlists', { userId: 1, coinId: 1 }, { unique: true });
+    await ix('alerts', { userId: 1, type: 1, coinId: 1, threshold: 1 }, { unique: true });
+    await ix('product_reviews', { userId: 1, productId: 1 }, { unique: true });
     await ix('paper_accounts', { userId: 1 }, { unique: true });
     await ix('apilogs', { at: -1 });
     console.log('[db] MongoDB indexes ensured');

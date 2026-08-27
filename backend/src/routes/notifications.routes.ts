@@ -39,6 +39,14 @@ notificationsRouter.post('/:id/read', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+/** DELETE /api/notifications/subscribe?playerId=… — unregister a push device */
+notificationsRouter.delete('/subscribe', asyncHandler(async (req, res) => {
+  const id = String(req.query.playerId || '').trim();
+  if (!id) return res.status(400).json({ error: 'playerId is required' });
+  const removed = await db().deleteMany('push_subscriptions', { userId: req.user!.id, playerId: id });
+  res.json({ ok: true, removed });
+}));
+
 /** DELETE /api/notifications/:id */
 notificationsRouter.delete('/:id', asyncHandler(async (req, res) => {
   await db().deleteOne('notifications', { _id: req.params.id, userId: req.user!.id });

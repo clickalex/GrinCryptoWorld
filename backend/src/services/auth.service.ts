@@ -33,7 +33,15 @@ export async function register(email: string, password: string, name: string): P
     createdAt: now(),
     updatedAt: now(),
   };
-  await db().insertOne(USERS, user);
+  try {
+    await db().insertOne(USERS, user);
+  } catch (e: any) {
+    // Unique-index race on MongoDB: another parallel register won — report 409.
+    if (String(e?.message || '').match(/duplicate|E11000/i)) {
+      throw Object.assign(new Error('An account with this email already exists'), { status: 409 });
+    }
+    throw e;
+  }
   return user;
 }
 
