@@ -30,6 +30,23 @@ export default function CoinDetailPage() {
   const [candles, setCandles] = useState<Array<{ t: number; o: number; h: number; l: number; c: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [watching, setWatching] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user || !coin) return;
+    api<{ coinIds: string[] }>('/watchlist')
+      .then((r) => setWatching(r.coinIds.includes(coin!.id)))
+      .catch(() => setWatching(null));
+  }, [user?.email, coin?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleWatch = async () => {
+    if (!user) return router.push('/auth/login');
+    try {
+      const r = await api<{ watching: boolean }>('/watchlist', { body: { coinId: coin!.id } });
+      setWatching(r.watching);
+      toast(r.watching ? '⭐ Added to watchlist' : 'Removed from watchlist', 'success');
+    } catch (e: any) { toast(e.message, 'error'); }
+  };
   const [alertPrice, setAlertPrice] = useState('');
   const [alertDir, setAlertDir] = useState<'price_above' | 'price_below'>('price_above');
 
@@ -121,7 +138,16 @@ export default function CoinDetailPage() {
               </div>
             ))}
           </div>
-          <button className="btn-primary" onClick={() => (user ? setAlertOpen(true) : router.push('/auth/login'))}>🔔 Set price alert</button>
+          <div className="flex gap-2">
+            <button
+              className={`btn border ${watching ? 'border-amber-400 bg-amber-400/10 text-amber-500' : 'border-slate-300 dark:border-white/10 text-slate-500 dark:text-slate-400'}`}
+              onClick={toggleWatch}
+              title={watching ? 'Remove from watchlist' : 'Add to watchlist'}
+            >
+              {watching ? '★ Watching' : '☆ Watch'}
+            </button>
+            <button className="btn-primary" onClick={() => (user ? setAlertOpen(true) : router.push('/auth/login'))}>🔔 Set price alert</button>
+          </div>
         </div>
       </div>
 

@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 import { CoinTable, GlobalStatsBar, type SortField } from '@/components/coin';
+import { CoinAvatar } from '@/components/common';
+import { changeColor, fmtPct, fmtUsd } from '@/lib/format';
 import { Pagination, Spinner, EmptyState } from '@/components/common';
 
 const PER_PAGE = 25;
@@ -98,6 +100,26 @@ export default function CoinsPage() {
       </div>
 
       <GlobalStatsBar global={global} source={source} />
+
+      {coins.length > 0 && (
+        <div className="mb-6 grid gap-4 md:grid-cols-2">
+          {([['🔥 Top gainers', (a: CoinMarket, b: CoinMarket) => (b.priceChangePercentage24h ?? 0) - (a.priceChangePercentage24h ?? 0)], ['🩸 Top losers', (a: CoinMarket, b: CoinMarket) => (a.priceChangePercentage24h ?? 0) - (b.priceChangePercentage24h ?? 0)]] as const).map(([title, cmp]) => (
+            <div key={title} className="card p-4">
+              <div className="label mb-2">{title} · 24h</div>
+              <div className="space-y-1.5">
+                {[...coins].sort(cmp).slice(0, 3).map((c) => (
+                  <Link key={c.id} href={`/coins/${c.id}`} className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-slate-100 dark:hover:bg-white/5">
+                    <CoinAvatar symbol={c.symbol} size={20} />
+                    <b>{c.symbol.toUpperCase()}</b>
+                    <span className="ml-auto font-semibold">{fmtUsd(c.currentPrice)}</span>
+                    <span className={`w-16 text-right font-bold ${changeColor(c.priceChangePercentage24h)}`}>{fmtPct(c.priceChangePercentage24h)}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading && coins.length === 0 ? <Spinner label="Loading markets…" /> :
         coins.length === 0 ? <EmptyState icon="🔍" title="No coins found" hint={`Nothing matched “${search}”. Try another search.`} /> : (
