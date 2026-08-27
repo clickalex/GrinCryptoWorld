@@ -387,3 +387,49 @@ describe('audit cycle 3: percent-change alerts (F2)', () => {
     expect(bio.status).toBe(400);
   });
 });
+
+describe('audit cycle 4: blog comments & product reviews (F3/F4)', () => {
+  it('comments: create, list, and stranger cannot delete', async () => {
+    const slug = (await request(app).get('/api/blog?perPage=1')).body.items[0].slug;
+    const created = await request(app).post(`/api/blog/${slug}/comments`).set('Cookie', cookie).send({ body: 'Audit-cycle comment — great read!' });
+    expect(created.status).toBe(201);
+
+    const list = await request(app).get(`/api/blog/${slug}/comments`);
+    expect(list.body.comments.some((c: any) => c._id === created.body.comment._id)).toBe(true);
+
+    const sellerCookieRes = await request(app).post('/api/auth/login').send({ email: 'seller@grincrypto.world', password: 'Seller123!' });
+    const sCookie = (sellerCookieRes.headers['set-cookie'] as unknown as string[]).find((c: string) => c.startsWith('gcw_token='))!;
+    const forbidden = await request(app).delete(`/api/blog/comments/${created.body.comment._id}`).set('Cookie', sCookie);
+    expect(forbidden.status).toBe(403);
+
+    const mine = await request(app).delete(`/api/blog/comments/${created.body.comment._id}`).set('Cookie', cookie);
+    expect(mine.status).toBe(200);
+  });
+
+  it('reviews: only verified buyers, one each, rating recomputed', async () => {
+    // fresh product: seller lists → admin approves → buyer pays → buyer reviews
+    const sellerCookieRes = await request(app).post('/api/auth/login').send({ email: 'seller@grincrypto.world', password: 'Seller123!' });
+    const sCookie = (sellerCookieRes.headers['set-cookie'] as unknown as string[]).find((c: string) => c.startsWith('gcw_token='))!;
+    const product = await request(app).post('/api/products').set('Cookie', sCookie).send({
+      title: 'Review flow test item', description: 'Used to verify the verified-buyer review flow.', priceUsd: 15, stock: 5, category: 'E-books',
+    });
+    await request(app).post(`/api/products/${product.body.product._id}/review`).set('Cookie', adminCookie).send({ status: 'approved' });
+
+    const before = await request(app).post(`/api/products/${product.body.product._id}/reviews`).set('Cookie', cookie).send({ rating: 4, body: 'Not bought yet, should fail.' });
+    expect(before.status).toBe(403);
+
+    const order = await request(app).post('/api/payments/checkout').set('Cookie', cookie).send({ productId: product.body.product._id, currency: 'ETH', method: 'nowpayments' });
+    await request(app).post(`/api/payments/${order.body.order._id}/mock-complete`).set('Cookie', cookie);
+
+    const ok = await request(app).post(`/api/products/${product.body.product._id}/reviews`).set('Cookie', cookie).send({ rating: 5, body: 'Bought and tested — works exactly as described.' });
+    expect(ok.status).toBe(201);
+    expect(ok.body.rating).toBe(5);
+
+    const dup = await request(app).post(`/api/products/${product.body.product._id}/reviews`).set('Cookie', cookie).send({ rating: 3, body: 'Second attempt should be blocked.' });
+    expect(dup.status).toBe(409);
+
+    const list = await request(app).get(`/api/products/${product.body.product._id}/reviews`);
+    expect(list.body.reviews).toHaveLength(1);
+    await request(app).delete(`/api/products/${product.body.product._id}`).set('Cookie', adminCookie);
+  });
+});
