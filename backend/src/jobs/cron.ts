@@ -29,6 +29,8 @@ export function startCronJobs() {
     const cutoff = new Date(Date.now() - 7 * 86_400_000).toISOString();
     const removed = await (await import('../db')).db().deleteMany('apilogs', { at: { $lt: cutoff } });
     if (removed) console.log(`[cron:logs] pruned ${removed} old API logs`);
+    const revokedGone = await (await import('../db')).db().deleteMany('revoked_tokens', { expiresAt: { $lt: cutoff } });
+    if (revokedGone) console.log(`[cron:tokens] pruned ${revokedGone} expired token revocations`);
   });
 
   console.log('[cron] jobs scheduled: coin refresh (2m), alert sweep (2m), log prune (nightly)');

@@ -1,7 +1,31 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { createHash } from 'crypto';
 import { config } from '../config';
 import { db, newId, now } from '../db';
+
+export const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
+
+/** Logout revocation: tokens listed here are rejected until their original expiry. */
+async function isRevoked(token: string): Promise<boolean> {
+  const hit = await db().findOne<any>('revoked_tokens', { tokenHash: tokenHash(token) });
+  if (!hit) return false;
+  if (hit.expiresAt && new Date(hit.expiresAt) < new Date()) {
+    await db().deleteMany('revoked_tokens', { _id: hit._id }).catch(() => undefined);
+    return false;
+  }
+  return true;
+}
+
+/** Called by POST /api/auth/logout — records the token so it can't be replayed. */
+export async function revokeToken(token: string) {
+  const decoded: any = jwt.decode(token) || {};
+  const exp = decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : new Date(Date.now() + 7 * 86400_000).toISOString();
+  const existing = await db().findOne<any>('revoked_tokens', { tokenHash: tokenHash(token) });
+  if (!existing) {
+    await db().insertOne('revoked_tokens', { _id: newId(), tokenHash: tokenHash(token), expiresAt: exp, createdAt: now() });
+  }
+}
 import type { PublicUser, Role } from '@shared/types';
 
 export interface AuthUser {
@@ -55,11 +79,13 @@ export function clearAuthCookie(res: Response) {
   res.cookie?.('gcw_token', '', { httpOnly: true, maxAge: 0, path: '/' });
 }
 
-export function authRequired(req: Request, res: Response, next: NextFunction) {
+export async function authRequired(req: Request, res: Response, next: NextFunction) {
+  
   const token = getTokenFromReq(req);
   if (!token) return res.status(401).json({ error: 'Authentication required' });
   try {
     const payload = jwt.verify(token, config.jwtSecret) as any;
+    if (await isRevoked(token)) return res.status(401).json({ error: 'Session ended — please sign in again' });
     req.user = { id: payload.sub, email: payload.email, role: payload.role, walletAddress: payload.walletAddress };
     next();
   } catch {
@@ -69,12 +95,14 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
 
 /** Attaches req.user when a valid token/cookie is present, but never rejects. *
  *  Lets public endpoints vary their response by role (e.g. admins see drafts). */
-export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const token = getTokenFromReq(req);
   if (token) {
     try {
       const payload = jwt.verify(token, config.jwtSecret) as any;
-      req.user = { id: payload.sub, email: payload.email, role: payload.role, walletAddress: payload.walletAddress };
+      if (!(await isRevoked(token))) {
+        req.user = { id: payload.sub, email: payload.email, role: payload.role, walletAddress: payload.walletAddress };
+      }
     } catch { /* anonymous */ }
   }
   next();

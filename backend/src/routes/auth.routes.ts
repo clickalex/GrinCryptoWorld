@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../utils';
-import { authRequired, clearAuthCookie, rateLimit, setAuthCookie, signToken, toPublicUser } from '../middleware/auth';
+import { authRequired, clearAuthCookie, getTokenFromReq, rateLimit, revokeToken, setAuthCookie, signToken, toPublicUser } from '../middleware/auth';
 import {
   createNonce, login, register, updateProfile, verifyWalletSignature, getProfile,
   requestPasswordReset, resetPassword, sendEmailVerification, verifyEmail,
@@ -27,8 +27,10 @@ authRouter.post('/login', rateLimit(10), asyncHandler(async (req, res) => {
   res.json({ token, user: toPublicUser(user) });
 }));
 
-/** POST /api/auth/logout — clears the httpOnly cookie */
-authRouter.post('/logout', (_req, res) => {
+/** POST /api/auth/logout — clears the httpOnly cookie AND revokes the token server-side */
+authRouter.post('/logout', (req, res) => {
+  const token = getTokenFromReq(req);
+  if (token) revokeToken(token).catch(() => undefined);
   clearAuthCookie(res);
   res.json({ ok: true });
 });
