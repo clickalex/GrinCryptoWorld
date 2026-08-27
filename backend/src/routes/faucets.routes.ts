@@ -25,10 +25,13 @@ faucetsRouter.get('/', asyncHandler(async (req, res) => {
   res.json({ items, coins, payoutMethods: PAYOUT_METHODS });
 }));
 
+const SAFE_URL = /^https?:\/\/.+/i;
+
 /** POST /api/faucets — add listing (admin only) */
 faucetsRouter.post('/', authRequired, adminRequired, asyncHandler(async (req, res) => {
   const { name, url, coins, reward, interval, payoutMethod, status, notes, referral } = req.body || {};
   if (!name || !url) return res.status(400).json({ error: 'name and url are required' });
+  if (!SAFE_URL.test(String(url))) return res.status(400).json({ error: 'url must start with http:// or https://' });
   if (!Array.isArray(coins) || !coins.length) return res.status(400).json({ error: 'at least one coin is required' });
 
   const faucet: Faucet = {
@@ -56,6 +59,9 @@ faucetsRouter.put('/:id', authRequired, adminRequired, asyncHandler(async (req, 
   const set: Record<string, any> = { updatedAt: now() };
   for (const k of ['name', 'url', 'reward', 'interval', 'payoutMethod', 'notes', 'referral', 'status'] as const) {
     if ((req.body as any)[k] !== undefined) set[k] = (req.body as any)[k];
+  }
+  if (set.url !== undefined && !SAFE_URL.test(String(set.url))) {
+    return res.status(400).json({ error: 'url must start with http:// or https://' });
   }
   if (req.body.coins !== undefined) set.coins = Array.isArray(req.body.coins) ? req.body.coins.map((c: string) => String(c).toUpperCase()) : [String(req.body.coins).toUpperCase()];
   const updated = await db().updateOne<Faucet>('faucets', { _id: cur._id }, { $set: set });

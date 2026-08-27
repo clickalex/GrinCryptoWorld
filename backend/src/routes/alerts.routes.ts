@@ -26,6 +26,13 @@ alertsRouter.post('/', asyncHandler(async (req, res) => {
   if (!coin) return res.status(400).json({ error: 'Unknown coin' });
   if (threshold === undefined || !isFinite(Number(threshold))) return res.status(400).json({ error: 'threshold must be a number' });
 
+  // One active alert per coin+type+threshold; cap total active alerts per user.
+  const mine = await db().find<Alert>('alerts', { userId: req.user!.id });
+  const active = mine.filter((a) => a.active);
+  if (active.length >= 25) return res.status(400).json({ error: 'Alert limit reached (25 active). Pause or delete some first.' });
+  const duplicate = active.find((a) => a.coinId === coin.id && a.type === type && a.threshold === Number(threshold));
+  if (duplicate) return res.status(409).json({ error: 'You already have this alert' });
+
   const alert: Alert = {
     _id: newId(),
     userId: req.user!.id,

@@ -48,7 +48,24 @@ adminRouter.patch('/users/:id', asyncHandler(async (req, res) => {
 /** DELETE /api/admin/users/:id */
 adminRouter.delete('/users/:id', asyncHandler(async (req, res) => {
   if (req.params.id === req.user!.id) return res.status(400).json({ error: 'You cannot delete yourself' });
-  const ok = await db().deleteOne('users', { _id: req.params.id });
+  const user = await db().findOne<any>('users', { _id: req.params.id });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Cascade: remove personal data, anonymize community content, keep order records
+  // (financial history).
+  await db().deleteMany('alerts', { userId: user._id });
+  await db().deleteMany('notifications', { userId: user._id });
+  await db().deleteMany('watchlists', { userId: user._id });
+  await db().deleteMany('paper_accounts', { userId: user._id });
+  await db().deleteMany('push_subscriptions', { userId: user._id });
+  for (const t of await db().find<any>('forum_threads', { authorId: user._id })) {
+    await db().updateOne('forum_threads', { _id: t._id }, { $set: { authorName: 'Deleted user' }, $pull: { upvotes: user._id } });
+  }
+  for (const c of await db().find<any>('forum_comments', { authorId: user._id })) {
+    await db().updateOne('forum_comments', { _id: c._id }, { $set: { authorName: 'Deleted user' }, $pull: { upvotes: user._id } });
+  }
+
+  const ok = await db().deleteOne('users', { _id: user._id });
   if (!ok) return res.status(404).json({ error: 'User not found' });
   res.json({ ok: true });
 }));
@@ -60,7 +77,9 @@ adminRouter.get('/logs', asyncHandler(async (req, res) => {
   const limit = Math.min(500, parseInt(req.query.limit as string) || 100);
   const items = await db().find<any>('apilogs', filter, { sort: { at: -1 }, limit });
 
-  const all = await db().find<any>('apilogs', {});
+  // Bound analytics work: the memory driver caps storage at 5k, but a real Mongo
+  // collection could be much larger — only the newest 5000 rows feed the aggregates.
+  const all = (await db().find<any>('apilogs', {}, { sort: { at: -1 }, limit: 5000 })).reverse();
   const byPath = new Map<string, { path: string; count: number; avgMs: number }>();
   for (const l of all) {
     const key = `${l.method} ${l.path.split('/').slice(0, 3).join('/')}`;

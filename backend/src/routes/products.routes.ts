@@ -68,7 +68,7 @@ productsRouter.post('/', authRequired, roleRequired('seller', 'admin'), asyncHan
   const product: Product = {
     _id: newId(),
     title: req.body.title.trim(),
-    slug: slugify(req.body.title),
+    slug: slugify(req.body.title) || newId(),
     description: req.body.description,
     images: Array.isArray(req.body.images) && req.body.images.length ? req.body.images : ['📦'],
     priceUsd: +Number(req.body.priceUsd).toFixed(2),
@@ -95,14 +95,28 @@ productsRouter.put('/:id', authRequired, asyncHandler(async (req, res) => {
   if (product.sellerId !== req.user!.id && req.user!.role !== 'admin') return res.status(403).json({ error: 'Not your listing' });
 
   const set: Record<string, any> = { updatedAt: now() };
+  const substantive = ['title', 'description', 'priceUsd', 'category'] as const;
+  let changedSubstantive = false;
   if (req.body.title !== undefined) { set.title = req.body.title; set.slug = slugify(req.body.title); }
   if (req.body.description !== undefined) set.description = req.body.description;
-  if (req.body.priceUsd !== undefined) set.priceUsd = +Number(req.body.priceUsd).toFixed(2);
+  if (req.body.priceUsd !== undefined) {
+    const price = Number(req.body.priceUsd);
+    if (!isFinite(price) || price <= 0 || price > 1_000_000) {
+      return res.status(400).json({ error: 'priceUsd must be a positive number up to 1,000,000' });
+    }
+    set.priceUsd = +price.toFixed(2);
+  }
   if (req.body.category !== undefined) set.category = req.body.category;
   if (req.body.stock !== undefined) set.stock = Math.max(0, parseInt(req.body.stock) || 0);
   if (req.body.images !== undefined) set.images = Array.isArray(req.body.images) ? req.body.images : [String(req.body.images)];
   if (req.body.downloadUrl !== undefined) set.downloadUrl = req.body.downloadUrl;
   if (req.body.status !== undefined && req.user!.role === 'admin') set.status = req.body.status;
+  for (const k of substantive) if ((req.body as any)[k] !== undefined) changedSubstantive = true;
+
+  // Sellers editing listing content (price/description/…) must go back through review.
+  if (changedSubstantive && req.user!.role !== 'admin' && product.status === 'approved') {
+    set.status = 'pending';
+  }
 
   const updated = await db().updateOne<Product>('products', { _id: product._id }, { $set: set });
   res.json({ product: updated });

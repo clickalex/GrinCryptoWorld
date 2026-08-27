@@ -185,7 +185,13 @@ export async function updateProfile(
   patch: Partial<Pick<User, 'name' | 'bio' | 'avatarUrl'>> & { settings?: Partial<User['settings']> }
 ): Promise<User | null> {
   const set: Record<string, any> = { updatedAt: now() };
-  if (patch.name !== undefined) set.name = patch.name;
+  if (patch.name !== undefined) {
+    const name = String(patch.name).trim();
+    if (name.length < 2 || name.length > 60) {
+      throw Object.assign(new Error('Display name must be 2–60 characters'), { status: 400 });
+    }
+    set.name = name;
+  }
   if (patch.bio !== undefined) set.bio = patch.bio;
   if (patch.avatarUrl !== undefined) set.avatarUrl = patch.avatarUrl;
   if (patch.settings) set['settings'] = { ...patch.settings };

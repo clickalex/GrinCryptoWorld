@@ -65,6 +65,7 @@ blogRouter.post('/', authRequired, adminRequired, asyncHandler(async (req, res) 
   if (errors.length) return res.status(400).json({ error: errors.join('; ') });
 
   const slug = slugify(req.body.slug || req.body.title);
+  if (!slug) return res.status(400).json({ error: 'Slug/title must contain letters or numbers' });
   if (await db().findOne('blog', { slug })) return res.status(409).json({ error: 'An article with this slug already exists' });
 
   const content: string = req.body.content;

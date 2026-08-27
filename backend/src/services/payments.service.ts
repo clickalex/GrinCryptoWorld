@@ -16,6 +16,9 @@ export async function createCheckout(
   const product = await db().findOne<any>('products', { _id: productId, status: 'approved' });
   if (!product) throw Object.assign(new Error('Product not found or not available'), { status: 404 });
   if (product.stock <= 0) throw Object.assign(new Error('Product out of stock'), { status: 409 });
+  if (!isFinite(product.priceUsd) || product.priceUsd <= 0) {
+    throw Object.assign(new Error('Product price is invalid — contact support'), { status: 409 });
+  }
 
   const cur = currency.toUpperCase();
   const rates = await getPricesBySymbols([cur]);

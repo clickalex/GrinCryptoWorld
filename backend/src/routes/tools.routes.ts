@@ -10,7 +10,10 @@ export const toolsRouter = Router();
 toolsRouter.get('/converter', asyncHandler(async (req, res) => {
   const from = String(req.query.from || 'BTC').toUpperCase();
   const to = String(req.query.to || 'USD').toUpperCase();
-  const amount = Math.max(0, parseFloat(String(req.query.amount)) || 0);
+  const rawAmount = parseFloat(String(req.query.amount));
+  if (isNaN(rawAmount)) return res.status(400).json({ error: 'amount must be a number' });
+  if (rawAmount < 0) return res.status(400).json({ error: 'amount cannot be negative' });
+  const amount = rawAmount;
 
   const symbols = [from, to].filter((s) => s !== 'USD');
   const rates = symbols.length ? await getPricesBySymbols(symbols) : {};

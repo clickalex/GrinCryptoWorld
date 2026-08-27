@@ -57,6 +57,7 @@ Priorities:
 - **Telegram/Discord alerts** (medium)
 
 ### Platform
+- **Upgrade Next.js 14 → 16** (audit finding: DoS/smuggling advisories only fixed in v16; limited exposure today but required before high traffic)
 - **Install as an app (PWA)** — works like a phone app, even offline shell (small)
 - **More currencies** — show prices in ₹, €, £ (medium)
 - **More languages** (medium)

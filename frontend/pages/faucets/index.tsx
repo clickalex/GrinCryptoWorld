@@ -104,7 +104,9 @@ export default function FaucetsPage() {
                   <td className="td text-slate-500">{f.interval}</td>
                   <td className="td text-slate-500">{f.payoutMethod}</td>
                   <td className="td text-right">
-                    <a href={f.url} target="_blank" rel="noopener noreferrer nofollow" className="btn-primary px-3 py-1.5 text-xs">Open ↗</a>
+                    {/^https?:\/\//i.test(f.url)
+                      ? <a href={f.url} target="_blank" rel="noopener noreferrer nofollow" className="btn-primary px-3 py-1.5 text-xs">Open ↗</a>
+                      : <span className="chip bg-red-500/10 text-red-500" title="Blocked unsafe link">unsafe link</span>}
                   </td>
                   {user?.role === 'admin' && (
                     <td className="td text-right">

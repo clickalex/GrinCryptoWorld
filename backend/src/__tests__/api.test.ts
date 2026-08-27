@@ -302,3 +302,57 @@ describe('audit round 4: glossary duplicate-slug guard', () => {
     expect(rename.status).toBe(409);
   });
 });
+
+/* ───────────── Audit cycle 2 regressions ───────────── */
+
+describe('audit cycle 2: marketplace & listing integrity', () => {
+  it('rejects negative/zero price edits on products (R1)', async () => {
+    const anon = await request(app).get('/api/products?perPage=1');
+    const pid = anon.body.items[0]._id;
+    const bad = await request(app).put(`/api/products/${pid}`).set('Cookie', adminCookie).send({ priceUsd: -10 });
+    expect(bad.status).toBe(400);
+    const zero = await request(app).put(`/api/products/${pid}`).set('Cookie', adminCookie).send({ priceUsd: 0 });
+    expect(zero.status).toBe(400);
+  });
+
+  it('rejects non-http faucet URLs (javascript: XSS vector) (R2)', async () => {
+    const bad = await request(app).post('/api/faucets').set('Cookie', adminCookie).send({
+      name: 'Evil', url: 'javascript:alert(1)', coins: ['BTC'],
+    });
+    expect(bad.status).toBe(400);
+    const good = await request(app).post('/api/faucets').set('Cookie', adminCookie).send({
+      name: 'Safe audit faucet', url: 'https://example.com', coins: ['BTC'],
+    });
+    expect(good.status).toBe(201);
+    await request(app).delete(`/api/faucets/${good.body.faucet._id}`).set('Cookie', adminCookie);
+  });
+
+  it('rejects duplicate active alerts and caps them (R3)', async () => {
+    const first = await request(app).post('/api/alerts').set('Cookie', cookie).send({ type: 'price_above', coinId: 'cardano', threshold: 42 });
+    expect(first.status).toBe(201);
+    const dup = await request(app).post('/api/alerts').set('Cookie', cookie).send({ type: 'price_above', coinId: 'cardano', threshold: 42 });
+    expect(dup.status).toBe(409);
+    await request(app).delete(`/api/alerts/${first.body.alert._id}`).set('Cookie', cookie);
+  });
+
+  it('rejects empty display names (R3)', async () => {
+    const bad = await request(app).patch('/api/auth/me').set('Cookie', cookie).send({ name: '   ' });
+    expect(bad.status).toBe(400);
+  });
+
+  it('rejects converter NaN and negative amounts (R5)', async () => {
+    const nan = await request(app).get('/api/tools/converter?from=BTC&to=USD&amount=abc');
+    expect(nan.status).toBe(400);
+    const neg = await request(app).get('/api/tools/converter?from=BTC&to=USD&amount=-1');
+    expect(neg.status).toBe(400);
+  });
+
+  it('rejects blog slugs that sanitize to empty (R9)', async () => {
+    const bad = await request(app).post('/api/blog').set('Cookie', adminCookie).send({
+      title: 'Valid title here', slug: '###',
+      content: 'Content long enough to pass validation for this test case.',
+      category: 'Guides',
+    });
+    expect(bad.status).toBe(400);
+  });
+});
