@@ -212,7 +212,7 @@ export interface CartItem {
 
 /* --------------------------- Alerts & Notifications --------------------------- */
 
-export type AlertType = 'price_above' | 'price_below' | 'news' | 'faucet';
+export type AlertType = 'price_above' | 'price_below' | 'change_24h_above' | 'change_24h_below' | 'news' | 'faucet';
 
 export interface Alert {
   _id: string;

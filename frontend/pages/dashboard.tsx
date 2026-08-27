@@ -151,10 +151,12 @@ export default function DashboardPage() {
                 {coinOptions.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.symbol.toUpperCase()})</option>)}
               </select>
               <select className="input" value={newAlert.type} onChange={(e) => setNewAlert({ ...newAlert, type: e.target.value as any })}>
-                <option value="price_above">Rises above</option>
-                <option value="price_below">Drops below</option>
+                <option value="price_above">Price rises above</option>
+                <option value="price_below">Price drops below</option>
+                <option value="change_24h_above">24h change ≥ %</option>
+                <option value="change_24h_below">24h change ≤ %</option>
               </select>
-              <input className="input" type="number" placeholder="Target USD price" value={newAlert.threshold} onChange={(e) => setNewAlert({ ...newAlert, threshold: e.target.value })} />
+              <input className="input" type="number" placeholder={newAlert.type.startsWith('change_24h') ? 'Percent (e.g. 5 or -5)' : 'Target USD price'} value={newAlert.threshold} onChange={(e) => setNewAlert({ ...newAlert, threshold: e.target.value })} />
               <button className="btn-primary" onClick={createAlert} disabled={!newAlert.threshold}>Create alert</button>
             </div>
             <p className="mt-2 text-xs text-slate-400">Alerts are evaluated every 2 minutes by the backend and delivered in-app, by email and via push (OneSignal).</p>

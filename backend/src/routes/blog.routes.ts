@@ -54,7 +54,10 @@ blogRouter.get('/:slug/summary', asyncHandler(async (req, res) => {
 function validatePost(body: any) {
   const errors: string[] = [];
   if (!body?.title || String(body.title).trim().length < 5) errors.push('title must be at least 5 characters');
+  else if (String(body.title).trim().length > 200) errors.push('title must be at most 200 characters');
+  if (body?.excerpt && String(body.excerpt).length > 500) errors.push('excerpt must be at most 500 characters');
   if (!body?.content || String(body.content).trim().length < 50) errors.push('content must be at least 50 characters');
+  else if (String(body.content).length > 50000) errors.push('content must be at most 50,000 characters');
   if (body?.category && !BLOG_CATEGORIES.includes(body.category)) errors.push(`category must be one of: ${BLOG_CATEGORIES.join(', ')}`);
   return errors;
 }

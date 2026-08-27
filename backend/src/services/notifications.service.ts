@@ -89,7 +89,7 @@ export async function runAlertSweep(): Promise<{ checked: number; triggered: num
   if (Date.now() - lastRun < 60_000) return { checked: 0, triggered: 0 };
   lastRun = Date.now();
 
-  const alerts = await db().find<Alert>(ALERTS, { type: { $in: ['price_above', 'price_below'] }, active: true });
+  const alerts = await db().find<Alert>(ALERTS, { type: { $in: ['price_above', 'price_below', 'change_24h_above', 'change_24h_below'] }, active: true });
   let triggered = 0;
 
   for (const alert of alerts) {
@@ -97,13 +97,18 @@ export async function runAlertSweep(): Promise<{ checked: number; triggered: num
     const coin = await getCoin(alert.coinId);
     if (!coin) continue;
 
+    const chg = coin.priceChangePercentage24h ?? 0;
     const hit =
       (alert.type === 'price_above' && coin.currentPrice >= (alert.threshold ?? Infinity)) ||
-      (alert.type === 'price_below' && coin.currentPrice <= (alert.threshold ?? 0));
+      (alert.type === 'price_below' && coin.currentPrice <= (alert.threshold ?? 0)) ||
+      (alert.type === 'change_24h_above' && chg >= (alert.threshold ?? Infinity)) ||
+      (alert.type === 'change_24h_below' && chg <= (alert.threshold ?? -Infinity));
 
     if (hit) {
-      const dir = alert.type === 'price_above' ? 'crossed above' : 'dropped below';
-      await notifyUser(alert.userId, `🔔 ${coin.name} ${dir} $${alert.threshold?.toLocaleString()}`, `${coin.name} (${coin.symbol.toUpperCase()}) is trading at $${coin.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}.`, {
+      const isPct = alert.type.startsWith('change_24h');
+      const dir = alert.type === 'price_above' ? 'crossed above' : alert.type === 'price_below' ? 'dropped below' : alert.type === 'change_24h_above' ? 'moved up' : 'moved down';
+      const target = isPct ? `${alert.threshold}% in 24h` : `$${alert.threshold?.toLocaleString()}`;
+      await notifyUser(alert.userId, `🔔 ${coin.name} ${dir} ${target}`, `${coin.name} (${coin.symbol.toUpperCase()}) — price $${coin.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 8 })}, 24h change ${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%.`, {
         link: `/coins/${coin.id}`,
         kind: 'price',
       });

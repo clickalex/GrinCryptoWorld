@@ -192,7 +192,10 @@ export async function updateProfile(
     }
     set.name = name;
   }
-  if (patch.bio !== undefined) set.bio = patch.bio;
+  if (patch.bio !== undefined) {
+    if (String(patch.bio).length > 500) throw Object.assign(new Error('Bio must be at most 500 characters'), { status: 400 });
+    set.bio = patch.bio;
+  }
   if (patch.avatarUrl !== undefined) set.avatarUrl = patch.avatarUrl;
   if (patch.settings) set['settings'] = { ...patch.settings };
   if (patch.settings && Object.keys(patch.settings).length) {

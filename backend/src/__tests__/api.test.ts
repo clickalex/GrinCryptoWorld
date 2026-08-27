@@ -356,3 +356,34 @@ describe('audit cycle 2: marketplace & listing integrity', () => {
     expect(bad.status).toBe(400);
   });
 });
+
+describe('audit cycle 3: percent-change alerts (F2)', () => {
+  it('creates a % alert, sweeps it, and it triggers + deactivates', async () => {
+    // every coin is above a -50% daily change in fallback data → immediate trigger
+    const created = await request(app).post('/api/alerts').set('Cookie', cookie).send({ type: 'change_24h_above', coinId: 'solana', threshold: -50 });
+    expect(created.status).toBe(201);
+
+    const { runAlertSweep } = await import('../services/notifications.service');
+    const result = await runAlertSweep();
+    expect(result.checked).toBeGreaterThanOrEqual(1);
+
+    const after = await request(app).get('/api/alerts').set('Cookie', cookie);
+    const mine = after.body.items.find((a: any) => a.coinId === 'solana' && a.type === 'change_24h_above' && a.threshold === -50);
+    expect(mine.active).toBe(false);
+    expect(mine.triggeredAt).toBeTruthy();
+  });
+
+  it('rejects absurd percent thresholds', async () => {
+    const bad = await request(app).post('/api/alerts').set('Cookie', cookie).send({ type: 'change_24h_above', coinId: 'solana', threshold: 5000 });
+    expect(bad.status).toBe(400);
+  });
+
+  it('enforces content caps (title ≤ 200, bio ≤ 500)', async () => {
+    const long = await request(app).post('/api/blog').set('Cookie', adminCookie).send({
+      title: 'x'.repeat(201), content: 'c'.repeat(60), category: 'Guides',
+    });
+    expect(long.status).toBe(400);
+    const bio = await request(app).patch('/api/auth/me').set('Cookie', cookie).send({ bio: 'b'.repeat(501) });
+    expect(bio.status).toBe(400);
+  });
+});

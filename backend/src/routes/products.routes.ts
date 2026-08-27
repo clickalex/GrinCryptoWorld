@@ -55,7 +55,9 @@ productsRouter.get('/:id', asyncHandler(async (req, res) => {
 function validateProduct(body: any): string[] {
   const errors: string[] = [];
   if (!body?.title || String(body.title).trim().length < 4) errors.push('title must be at least 4 characters');
+  else if (String(body.title).trim().length > 120) errors.push('title must be at most 120 characters');
   if (!body?.description || String(body.description).trim().length < 20) errors.push('description must be at least 20 characters');
+  else if (String(body.description).length > 5000) errors.push('description must be at most 5,000 characters');
   if (!body?.priceUsd || Number(body.priceUsd) <= 0) errors.push('priceUsd must be a positive number');
   return errors;
 }

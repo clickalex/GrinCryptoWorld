@@ -18,13 +18,17 @@ alertsRouter.get('/', asyncHandler(async (req, res) => {
 /** POST /api/alerts — create price/news alert */
 alertsRouter.post('/', asyncHandler(async (req, res) => {
   const { type, coinId, threshold, channel } = req.body || {};
-  if (!['price_above', 'price_below'].includes(type)) {
-    return res.status(400).json({ error: 'type must be price_above or price_below' });
+  const types = ['price_above', 'price_below', 'change_24h_above', 'change_24h_below'];
+  if (!types.includes(type)) {
+    return res.status(400).json({ error: `type must be one of: ${types.join(', ')}` });
   }
   if (!coinId) return res.status(400).json({ error: 'coinId is required' });
   const coin = await getCoin(coinId);
   if (!coin) return res.status(400).json({ error: 'Unknown coin' });
   if (threshold === undefined || !isFinite(Number(threshold))) return res.status(400).json({ error: 'threshold must be a number' });
+  if (type.startsWith('change_24h') && (Math.abs(Number(threshold)) > 1000)) {
+    return res.status(400).json({ error: 'percent threshold must be between -1000 and 1000' });
+  }
 
   // One active alert per coin+type+threshold; cap total active alerts per user.
   const mine = await db().find<Alert>('alerts', { userId: req.user!.id });
