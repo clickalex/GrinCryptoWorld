@@ -78,6 +78,22 @@ export default function BlogPostPage() {
         <meta property="og:title" content={post.title} />
         <meta property="og:description" content={post.excerpt} />
         <meta property="og:type" content="article" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Article',
+              headline: post.title,
+              description: post.excerpt,
+              author: { '@type': 'Person', name: post.authorName },
+              publisher: { '@type': 'Organization', name: 'GrinCryptoWorld' },
+              datePublished: post.publishedAt ?? post.createdAt,
+              dateModified: post.updatedAt,
+              keywords: post.tags?.join(', '),
+            }),
+          }}
+        />
       </Head>
       <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Blog', href: '/blog' }, { label: post.category }]} />
 
