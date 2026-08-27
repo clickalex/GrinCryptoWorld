@@ -32,8 +32,10 @@ Render blueprint: merge the PR → render.com → New → Blueprint → select r
 Read **[AUDIT.md](./AUDIT.md)** — an honest, plain-English list of the build's pros and
 cons — and **[ROADMAP.md](./ROADMAP.md)** for the prioritized feature plan.
 Recent additions: **cookie-based login + logout token revocation, password reset emails,
-account lockout, watchlist ⭐, candlestick charts 🕯️, coin compare ⚖️, Fear & Greed widget,
-blog comments 💬, verified-buyer reviews ⭐, %-change alerts, paper-trading game 🎮,
+account lockout, watchlist ⭐ (table + coin page), candlestick charts 🕯️, coin compare ⚖️,
+Fear & Greed widget, blog comments 💬, verified-buyer reviews ⭐, %-change alerts,
+paper-trading game 🎮 with achievements 🏅, multi-currency display (USD/INR/EUR/GBP/JPY),
+command palette (Ctrl+K), custom 404, RSS feed, movers strip, /api-docs reference,
 PWA manifest, 44 automated tests, GitHub Actions CI, MongoDB indexes, helmet headers**
 and optional on-chain payment verification.
 
