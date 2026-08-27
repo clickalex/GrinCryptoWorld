@@ -1,12 +1,14 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { BlogPost } from '@grincrypto/shared';
 import { api } from '@/lib/api';
 import { Breadcrumbs, EmptyState, Spinner, Tag } from '@/components/common';
 import { Markdown } from '@/lib/markdown';
-import { fmtDate } from '@/lib/format';
+import { fmtDate, timeAgo } from '@/lib/format';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/lib/toast';
 
 export default function BlogPostPage() {
   const router = useRouter();
@@ -15,6 +17,34 @@ export default function BlogPostPage() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [comments, setComments] = useState<Array<{ _id: string; authorName: string; body: string; createdAt: string; userId: string }>>([]);
+  const [commentBody, setCommentBody] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const loadComments = useCallback(async () => {
+    try {
+      const r = await api<{ comments: typeof comments }>(`/blog/${slug}/comments`);
+      setComments(r.comments);
+    } catch { /* noop */ }
+  }, [slug]);
+  useEffect(() => { loadComments(); }, [loadComments]);
+
+  const postComment = async () => {
+    if (commentBody.trim().length < 2) return;
+    setSending(true);
+    try {
+      await api(`/blog/${slug}/comments`, { body: { body: commentBody } });
+      setCommentBody('');
+      loadComments();
+      toast('Comment posted 💬', 'success');
+    } catch (e: any) { toast(e.message, 'error'); } finally { setSending(false); }
+  };
+
+  const deleteComment = async (id: string) => {
+    try { await api(`/blog/comments/${id}`, { method: 'DELETE' }); loadComments(); } catch (e: any) { toast(e.message, 'error'); }
+  };
 
   useEffect(() => {
     if (!slug) return;
@@ -77,6 +107,34 @@ export default function BlogPostPage() {
         )}
 
         <Markdown content={post.content} />
+
+        <section className="mt-12">
+          <h2 className="mb-4 text-xl font-bold">{comments.length} comments</h2>
+          <div className="space-y-3">
+            {comments.map((c) => (
+              <div key={c._id} className="card p-4">
+                <div className="text-xs text-slate-400"><b className="text-slate-600 dark:text-slate-300">{c.authorName}</b> · {timeAgo(c.createdAt)}</div>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300">{c.body}</p>
+                {(user?._id === c.userId || user?.role === 'admin') && (
+                  <button onClick={() => deleteComment(c._id)} className="mt-2 text-xs font-semibold text-slate-400 hover:text-red-500">Delete</button>
+                )}
+              </div>
+            ))}
+          </div>
+          {user ? (
+            <div className="card mt-6 p-4">
+              <textarea className="input min-h-24" placeholder="Join the discussion…" value={commentBody} onChange={(e) => setCommentBody(e.target.value)} maxLength={2000} />
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-slate-400">{commentBody.length}/2000</span>
+                <button className="btn-primary" disabled={sending || commentBody.trim().length < 2} onClick={postComment}>{sending ? 'Posting…' : 'Post comment'}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="card mt-6 p-5 text-sm text-slate-500">
+              <Link href="/auth/login" className="font-semibold text-brand-500">Sign in</Link> to join the discussion.
+            </div>
+          )}
+        </section>
 
         <footer className="mt-10 border-t border-slate-200 pt-6 dark:border-white/10">
           <div className="flex flex-wrap items-center justify-between gap-4">

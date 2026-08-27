@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { BlogPost } from '@shared/types';
 import { BLOG_CATEGORIES } from '../../../shared/constants';
 import { db, newId, now } from '../db';
-import { adminRequired, authRequired } from '../middleware/auth';
+import { adminRequired, authRequired, rateLimit as rateLimitShared } from '../middleware/auth';
 import { asyncHandler, readingMinutes, slugify } from '../utils';
 import { fanOutNews } from '../services/notifications.service';
 import { summarize } from '../services/ai.service';
@@ -61,6 +61,35 @@ function validatePost(body: any) {
   if (body?.category && !BLOG_CATEGORIES.includes(body.category)) errors.push(`category must be one of: ${BLOG_CATEGORIES.join(', ')}`);
   return errors;
 }
+
+/** GET /api/blog/:slug/comments — public comment list */
+blogRouter.get('/:slug/comments', asyncHandler(async (req, res) => {
+  const post = await db().findOne<any>('blog', { slug: req.params.slug, status: 'published' });
+  if (!post) return res.status(404).json({ error: 'Article not found' });
+  const comments = await db().find<any>('blog_comments', { postId: post._id }, { sort: { createdAt: 1 }, limit: 100 });
+  res.json({ comments });
+}));
+
+/** POST /api/blog/:slug/comments — add a comment (signed in) */
+blogRouter.post('/:slug/comments', authRequired, rateLimitShared(10), asyncHandler(async (req, res) => {
+  const post = await db().findOne<any>('blog', { slug: req.params.slug, status: 'published' });
+  if (!post) return res.status(404).json({ error: 'Article not found' });
+  const body = String((req.body || {}).body || '').trim();
+  if (body.length < 2 || body.length > 2000) return res.status(400).json({ error: 'Comment must be 2–2000 characters' });
+  const author = await db().findOne<any>('users', { _id: req.user!.id });
+  const comment = { _id: newId(), postId: post._id, userId: req.user!.id, authorName: author?.name || 'Anonymous', body, createdAt: now() };
+  await db().insertOne('blog_comments', comment);
+  res.status(201).json({ comment });
+}));
+
+/** DELETE /api/blog/comments/:id — author or admin */
+blogRouter.delete('/comments/:id', authRequired, asyncHandler(async (req, res) => {
+  const c = await db().findOne<any>('blog_comments', { _id: req.params.id });
+  if (!c) return res.status(404).json({ error: 'Comment not found' });
+  if (c.userId !== req.user!.id && req.user!.role !== 'admin') return res.status(403).json({ error: 'Not your comment' });
+  await db().deleteOne('blog_comments', { _id: c._id });
+  res.json({ ok: true });
+}));
 
 /** POST /api/blog — create article (admin only) */
 blogRouter.post('/', authRequired, adminRequired, asyncHandler(async (req, res) => {
