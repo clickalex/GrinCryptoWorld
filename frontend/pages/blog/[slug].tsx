@@ -2,6 +2,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useState } from 'react';
+import type { GetServerSideProps } from 'next';
 import type { BlogPost } from '@grincrypto/shared';
 import { api } from '@/lib/api';
 import { Breadcrumbs, EmptyState, Spinner, Tag } from '@/components/common';
@@ -10,11 +11,24 @@ import { fmtDate, timeAgo } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/lib/toast';
 
-export default function BlogPostPage() {
+const rawApi = process.env.API_SSR_URL || process.env.API_PROXY_TARGET || 'http://localhost:4000';
+const API = rawApi.startsWith('http') ? rawApi : `https://${rawApi}`;
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const slug = String(ctx.query.slug || '');
+  let initialPost: BlogPost | null = null;
+  try {
+    const res = await fetch(`${API}/api/blog/${encodeURIComponent(slug)}`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) initialPost = (await res.json()).post ?? null;
+  } catch { /* client will retry */ }
+  return { props: { initialPost } };
+};
+
+export default function BlogPostPage({ initialPost }: { initialPost: BlogPost | null }) {
   const router = useRouter();
   const { slug } = router.query;
-  const [post, setPost] = useState<BlogPost | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<BlogPost | null>(initialPost);
+  const [loading, setLoading] = useState(!initialPost);
   const [summary, setSummary] = useState<string | null>(null);
   const [summarizing, setSummarizing] = useState(false);
   const { user } = useAuth();
@@ -47,13 +61,13 @@ export default function BlogPostPage() {
   };
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || initialPost) return;
     setLoading(true);
     api<{ post: BlogPost }>(`/blog/${slug}`)
       .then((r) => setPost(r.post))
       .catch(() => setPost(null))
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, initialPost]);
 
   if (loading) return <Spinner label="Loading article…" />;
   if (!post) return <div className="mx-auto max-w-3xl px-4 py-16"><EmptyState icon="📰" title="Article not found" action={<Link href="/blog" className="btn-primary mt-3">← All articles</Link>} /></div>;
