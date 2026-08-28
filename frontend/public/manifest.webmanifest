@@ -1,0 +1,20 @@
+{
+  "name": "GrinCryptoWorld — Crypto Prices, Tools & Marketplace",
+  "short_name": "GrinCrypto",
+  "description": "Live crypto prices, charts, glossary, faucets, paper trading and a crypto marketplace.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1015",
+  "theme_color": "#10b981",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Markets", "url": "/coins" },
+    { "name": "Paper Trading", "url": "/tools/trading" },
+    { "name": "Watchlist", "url": "/watchlist" }
+  ]
+}

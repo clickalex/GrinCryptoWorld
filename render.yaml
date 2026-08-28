@@ -1,0 +1,74 @@
+# Render Blueprint — deploys the full stack as two free web services.
+# Usage: render.com → New → Blueprint → select this repo → Apply.
+# Result:
+#   API  → https://<render-account>-grincrypto-api.onrender.com
+#   Web  → https://<render-account>-grincrypto-web.onrender.com
+services:
+  # ─────────────────────────── Express API ───────────────────────────
+  - type: web
+    name: grincrypto-api
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build -w backend
+    startCommand: npm run start -w backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_ON_BOOT
+        value: "true"
+      # Optional: paste a MongoDB Atlas connection string for persistent data.
+      # Left empty → built-in in-memory store (data resets on each deploy/restart).
+      - key: MONGODB_URI
+        sync: false
+      # Optional integrations (leave empty to disable):
+      - key: COINGECKO_API_KEY
+        sync: false
+      - key: NOWPAYMENTS_API_KEY
+        sync: false
+      - key: NOWPAYMENTS_IPN_SECRET
+        sync: false
+      # signature (demo) or transaction (verify real on-chain ETH transfers):
+      - key: PAYMENTS_MODE
+        sync: false
+      - key: PAYMENT_ADDRESS
+        sync: false
+      - key: ETHEREUM_RPC_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ONESIGNAL_APP_ID
+        sync: false
+      - key: ONESIGNAL_API_KEY
+        sync: false
+      - key: SMTP_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Public frontend URL (used in password-reset email links):
+      - key: WEB_APP_URL
+        fromService:
+          name: grincrypto-web
+          type: web
+          property: host
+
+  # ─────────────────────────── Next.js frontend ───────────────────────────
+  - type: web
+    name: grincrypto-web
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build -w frontend
+    startCommand: npm run start -w frontend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Automatically wired to the API service's public host above.
+      - key: API_PROXY_TARGET
+        fromService:
+          name: grincrypto-api
+          type: web
+          property: host

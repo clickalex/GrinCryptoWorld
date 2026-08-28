@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# builds
+.next/
+out/
+dist/
+build/
+
+# env & secrets
+.env
+.env.local
+*.pem
+
+# local dev database (persisted in-memory store)
+backend/data/
+
+# misc
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*

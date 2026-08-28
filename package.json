@@ -1,0 +1,19 @@
+{
+  "name": "grincrypto-world",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GrinCryptoWorld — full-featured cryptocurrency platform (Next.js + Express + MongoDB)",
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "seed": "npm run seed -w backend",
+    "test": "npm test -w backend",
+    "build": "npm run build -w frontend",
+    "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend"
+  }
+}

@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Typecheck backend
+        run: npm run typecheck -w backend
+
+      - name: Typecheck frontend
+        run: npm run typecheck -w frontend
+
+      - name: Run backend tests
+        run: npm test -w backend
+
+      - name: Build backend
+        run: npm run build -w backend
+
+      - name: Build frontend
+        run: npm run build -w frontend
+        env:
+          # home page fetch at build time fails gracefully, but keep it quiet:
+          API_PROXY_TARGET: http://localhost:4000
